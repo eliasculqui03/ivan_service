@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
@@ -41,9 +42,24 @@ class AuthController extends Controller
                 ], 200);
             }
 
-            // Actualizar last_login_at
             $user = Auth::user();
+
+            if ($user->status == 0) {
+                JWTAuth::setToken($token)->invalidate();
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'User disabled'
+                ], 200);
+            }
+
             $user->update(['last_login_at' => now()]);
+
+            // Obtener roles del usuario
+            $roles = DB::table('roles_users')
+                ->join('roles', 'roles.id', '=', 'roles_users.id_role')
+                ->where('roles_users.id_user', $user->id)
+                ->select('roles.id', 'roles.name')
+                ->get();
         } catch (JWTException $e) {
             return response()->json([
                 'status' => 500,
@@ -58,6 +74,7 @@ class AuthController extends Controller
             'data' => [
                 'token' => $token,
                 'user' => $user,
+                'roles' => $roles,
             ],
         ], 200);
     }
@@ -124,6 +141,50 @@ class AuthController extends Controller
                 'status' => 500,
                 'message' => 'Could not refresh token',
                 'errors' => $e->getMessage()
+            ], 200);
+        }
+    }
+
+    public function validateToken()
+    {
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+
+            if (!$user) {
+                return response()->json([
+                    'status' => 401,
+                    'message' => 'Token is invalid',
+                    'valid' => false
+                ], 200);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Token is valid',
+                'valid' => true,
+                'data' => [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'expires_at' => JWTAuth::payload()->get('exp'),
+                ]
+            ], 200);
+        } catch (\PHPOpenSourceSaver\JWTAuth\Exceptions\TokenExpiredException $e) {
+            return response()->json([
+                'status' => 401,
+                'message' => 'Token has expired',
+                'valid' => false
+            ], 200);
+        } catch (\PHPOpenSourceSaver\JWTAuth\Exceptions\TokenInvalidException $e) {
+            return response()->json([
+                'status' => 401,
+                'message' => 'Token is invalid',
+                'valid' => false
+            ], 200);
+        } catch (\PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException $e) {
+            return response()->json([
+                'status' => 401,
+                'message' => 'Token not provided',
+                'valid' => false
             ], 200);
         }
     }

@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\AtencionController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CirugiaController;
 use App\Http\Controllers\EspecialidadController;
+use App\Http\Controllers\ExamenLaboratorioController;
 use App\Http\Controllers\PacienteController;
 use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\UsersController;
@@ -91,6 +93,42 @@ Route::prefix('v1')->group(function () {
             Route::post('/agenda', [AtencionController::class, 'agenda']);
             Route::post('/trashed', [AtencionController::class, 'trashed']);
             Route::post('/restore', [AtencionController::class, 'restore']);
+        });
+
+        // Cirugías
+        Route::prefix('cirugias')->group(function () {
+            Route::post('/', [CirugiaController::class, 'index']);
+            Route::post('/store', [CirugiaController::class, 'store']);
+            Route::post('/show', [CirugiaController::class, 'show']);
+            Route::post('/update', [CirugiaController::class, 'update']);
+            Route::post('/destroy', [CirugiaController::class, 'destroy']);
+            Route::post('/hoy', [CirugiaController::class, 'hoy']);
+            Route::post('/search', [CirugiaController::class, 'search']);
+            Route::post('/cambiar-estado', [CirugiaController::class, 'cambiarEstado']);
+            Route::post('/stats', [CirugiaController::class, 'estadisticas']);
+            Route::post('/por-paciente', [CirugiaController::class, 'porPaciente']);
+            Route::post('/trashed', [CirugiaController::class, 'trashed']);
+            Route::post('/restore', [CirugiaController::class, 'restore']);
+        });
+
+        // Exámenes de Laboratorio
+        Route::prefix('examenes')->group(function () {
+            Route::post('/', [ExamenLaboratorioController::class, 'index']);
+            Route::post('/store', [ExamenLaboratorioController::class, 'store']);
+            Route::post('/show', [ExamenLaboratorioController::class, 'show']);
+            Route::post('/update', [ExamenLaboratorioController::class, 'update']);
+            Route::post('/destroy', [ExamenLaboratorioController::class, 'destroy']);
+            Route::post('/pendientes', [ExamenLaboratorioController::class, 'pendientes']);
+            Route::post('/urgentes', [ExamenLaboratorioController::class, 'urgentes']);
+            Route::post('/search', [ExamenLaboratorioController::class, 'search']);
+            Route::post('/cambiar-estado', [ExamenLaboratorioController::class, 'cambiarEstado']);
+            Route::post('/registrar-muestra', [ExamenLaboratorioController::class, 'registrarMuestra']);
+            Route::post('/registrar-resultados', [ExamenLaboratorioController::class, 'registrarResultados']);
+            Route::post('/validar', [ExamenLaboratorioController::class, 'validar']);
+            Route::post('/stats', [ExamenLaboratorioController::class, 'estadisticas']);
+            Route::post('/por-paciente', [ExamenLaboratorioController::class, 'porPaciente']);
+            Route::post('/trashed', [ExamenLaboratorioController::class, 'trashed']);
+            Route::post('/restore', [ExamenLaboratorioController::class, 'restore']);
         });
     });
 });
