@@ -51,7 +51,7 @@ class EspecialidadController extends Controller
     public function activas(): AnonymousResourceCollection
     {
         $especialidades = $this->especialidadService->getAllActive();
-        
+
         return EspecialidadResource::collection($especialidades);
     }
 
@@ -72,7 +72,6 @@ class EspecialidadController extends Controller
                 'message' => 'Especialidad creada exitosamente',
                 'data' => new EspecialidadResource($especialidad),
             ], 201);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -98,7 +97,6 @@ class EspecialidadController extends Controller
                 'success' => true,
                 'data' => new EspecialidadResource($especialidad),
             ]);
-
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
@@ -125,13 +123,11 @@ class EspecialidadController extends Controller
                 'message' => 'Especialidad actualizada exitosamente',
                 'data' => new EspecialidadResource($especialidad),
             ]);
-
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Especialidad no encontrada',
             ], 404);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -157,13 +153,11 @@ class EspecialidadController extends Controller
                 'success' => true,
                 'message' => 'Especialidad eliminada exitosamente',
             ]);
-
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Especialidad no encontrada',
             ], 404);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -197,7 +191,6 @@ class EspecialidadController extends Controller
                 'message' => 'Estado actualizado exitosamente',
                 'data' => new EspecialidadResource($especialidad),
             ]);
-
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
@@ -260,7 +253,6 @@ class EspecialidadController extends Controller
                 'message' => 'Especialidad restaurada exitosamente',
                 'data' => new EspecialidadResource($especialidad),
             ]);
-
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
