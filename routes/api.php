@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ConsultaExternaController;
 use App\Http\Controllers\EspecialidadController;
+use App\Http\Controllers\MedicoController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -71,5 +73,96 @@ Route::middleware('auth:api')->group(function () {
         // Restaurar eliminada
         // POST /api/especialidades/1/restore
         Route::post('/{id}/restore', [EspecialidadController::class, 'restore']);
+    });
+
+
+    Route::prefix('medicos')->group(function () {
+        // Listar todos los médicos (paginado)
+        // GET /api/medicos?page=1&per_page=15&search=juan&status=1&especialidad_id=1
+        Route::get('/', [MedicoController::class, 'index']);
+        // Crear nuevo médico
+        // POST /api/medicos
+        Route::post('/', [MedicoController::class, 'store']);
+        // Ver un médico específico
+        // GET /api/medicos/1
+        Route::get('/{id}', [MedicoController::class, 'show']);
+        // Actualizar médico
+        // PUT/PATCH /api/medicos/1
+        Route::put('/{id}', [MedicoController::class, 'update']);
+        Route::patch('/{id}', [MedicoController::class, 'update']);
+        // Eliminar médico (soft delete)
+        // DELETE /api/medicos/1
+        Route::delete('/{id}', [MedicoController::class, 'destroy']);
+        // ==================== RUTAS ADICIONALES ====================
+        // Obtener solo médicos activos (sin paginación)
+        // GET /api/medicos/activos/list?especialidad_id=1
+        Route::get('/activos/list', [MedicoController::class, 'activos']);
+        // Buscar médicos
+        // GET /api/medicos/search/query?q=juan
+        Route::get('/search/query', [MedicoController::class, 'search']);
+        // Cambiar estado (activar/desactivar)
+        // PATCH /api/medicos/1/toggle-status
+        Route::patch('/{id}/toggle-status', [MedicoController::class, 'toggleStatus']);
+        // Obtener estadísticas
+        // GET /api/medicos/stats/general
+        Route::get('/stats/general', [MedicoController::class, 'estadisticas']);
+        // Obtener médicos por especialidad
+        // GET /api/medicos/especialidad/1/list
+        Route::get('/especialidad/{especialidadId}/list', [MedicoController::class, 'porEspecialidad']);
+        // Obtener eliminados
+        // GET /api/medicos/trashed/list
+        Route::get('/trashed/list', [MedicoController::class, 'trashed']);
+        // Restaurar eliminado
+        // POST /api/medicos/1/restore
+        Route::post('/{id}/restore', [MedicoController::class, 'restore']);
+        // Cambiar contraseña
+        // POST /api/medicos/1/change-password
+        Route::post('/{id}/change-password', [MedicoController::class, 'changePassword']);
+    });
+
+    Route::prefix('consultas-externas')->group(function () {
+        // Listar todas las consultas externas (paginado)
+        // GET /api/consultas-externas?medico_id=1&paciente_id=1&ficha_completada=1
+        Route::get('/', [ConsultaExternaController::class, 'index']);
+        // Crear nueva consulta externa
+        // POST /api/consultas-externas
+        Route::post('/', [ConsultaExternaController::class, 'store']);
+        // Ver una consulta externa específica
+        // GET /api/consultas-externas/1
+        Route::get('/{id}', [ConsultaExternaController::class, 'show']);
+        // Actualizar consulta externa
+        // PUT/PATCH /api/consultas-externas/1
+        Route::put('/{id}', [ConsultaExternaController::class, 'update']);
+        Route::patch('/{id}', [ConsultaExternaController::class, 'update']);
+        // Eliminar consulta externa (soft delete)
+        // DELETE /api/consultas-externas/1
+        Route::delete('/{id}', [ConsultaExternaController::class, 'destroy']);
+        // Obtener consulta por atención
+        // GET /api/consultas-externas/atencion/1
+        Route::get('/atencion/{atencionId}', [ConsultaExternaController::class, 'getByAtencion']);
+        // Completar y firmar consulta
+        // POST /api/consultas-externas/1/completar
+        Route::post('/{id}/completar', [ConsultaExternaController::class, 'completar']);
+        // Guardar como borrador
+        // POST /api/consultas-externas/1/borrador
+        Route::post('/{id}/borrador', [ConsultaExternaController::class, 'borrador']);
+        // Obtener resumen
+        // GET /api/consultas-externas/1/resumen
+        Route::get('/{id}/resumen', [ConsultaExternaController::class, 'resumen']);
+        // Obtener estadísticas
+        // GET /api/consultas-externas/stats/general
+        Route::get('/stats/general', [ConsultaExternaController::class, 'estadisticas']);
+        // Historial de paciente
+        // GET /api/consultas-externas/paciente/1/historial
+        Route::get('/paciente/{pacienteId}/historial', [ConsultaExternaController::class, 'historial']);
+        // Buscar por diagnóstico
+        // GET /api/consultas-externas/search/diagnostico?q=diabetes
+        Route::get('/search/diagnostico', [ConsultaExternaController::class, 'buscarDiagnostico']);
+        // Obtener eliminadas
+        // GET /api/consultas-externas/trashed/list
+        Route::get('/trashed/list', [ConsultaExternaController::class, 'trashed']);
+        // Restaurar eliminada
+        // POST /api/consultas-externas/1/restore
+        Route::post('/{id}/restore', [ConsultaExternaController::class, 'restore']);
     });
 });
