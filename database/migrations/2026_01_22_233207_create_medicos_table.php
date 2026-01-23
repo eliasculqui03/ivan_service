@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('medicos', function (Blueprint $table) {
-            Schema::create('medicos', function (Blueprint $table) {
+           
                 $table->id();
                 $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
                 $table->foreignId('especialidad_id')->constrained('especialidades')->onDelete('restrict');
@@ -31,7 +31,7 @@ return new class extends Migration
                 $table->boolean('status')->default(true);
                 $table->timestamps();
                 $table->softDeletes();
-            });
+            
         });
     }
 
