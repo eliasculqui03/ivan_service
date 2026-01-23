@@ -14,7 +14,7 @@ class UpdateEspecialidadRequest extends FormRequest
     {
         // Verificar que el usuario tenga permiso
         // return $this->user()->can('editar_especialidades');
-        
+
         // Por ahora permitimos a todos los usuarios autenticados
         return true;
     }
@@ -81,13 +81,13 @@ class UpdateEspecialidadRequest extends FormRequest
             'nombre.required' => 'El nombre de la especialidad es obligatorio.',
             'nombre.unique' => 'Ya existe una especialidad con este nombre.',
             'nombre.max' => 'El nombre no puede tener más de 100 caracteres.',
-            
+
             'codigo.unique' => 'Este código ya está en uso.',
             'codigo.max' => 'El código no puede tener más de 20 caracteres.',
             'codigo.alpha_dash' => 'El código solo puede contener letras, números, guiones y guiones bajos.',
-            
+
             'descripcion.max' => 'La descripción no puede tener más de 500 caracteres.',
-            
+
             'status.boolean' => 'El estado debe ser verdadero o falso.',
         ];
     }
