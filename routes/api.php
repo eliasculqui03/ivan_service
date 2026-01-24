@@ -8,7 +8,10 @@ use App\Http\Controllers\EspecialidadController;
 use App\Http\Controllers\ExamenLaboratorioController;
 use App\Http\Controllers\MedicoController;
 use App\Http\Controllers\PacienteController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\UsersController;
+use App\Http\Controllers\UtilsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -18,9 +21,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/validate-token', [AuthController::class, 'validateToken']);
     });
 
-    Route::post('/users/create', [UsersController::class, 'createUser']);
+    Route::post('/users/create', [UserController::class, 'createUser']);
 
- Route::middleware('auth:api')->group(function () {
+    Route::middleware('auth:api')->group(function () {
         // Auth
         Route::prefix('auth')->group(function () {
             Route::post('/me', [AuthController::class, 'me']);
@@ -30,11 +33,28 @@ Route::prefix('v1')->group(function () {
 
         // Users
         Route::prefix('users')->group(function () {
-            Route::post('/', [UsersController::class, 'getUsers']);
-            Route::post('/detail', [UsersController::class, 'detailUser']);
-            Route::post('/update', [UsersController::class, 'updateUser']);
-            Route::post('/change-status', [UsersController::class, 'changeStatus']);
-            Route::post('/change-password', [UsersController::class, 'changePassword']);
+            Route::get('/', [UserController::class, 'index']);
+            Route::post('/', [UserController::class, 'store']);
+            Route::get('/stats/general', [UserController::class, 'estadisticas']);
+            Route::get('/{id}', [UserController::class, 'show']);
+            Route::put('/{id}', [UserController::class, 'update']);
+            Route::patch('/{id}', [UserController::class, 'update']);
+            Route::delete('/{id}', [UserController::class, 'destroy']);
+            Route::post('/{id}/toggle-status', [UserController::class, 'toggleStatus']);
+            Route::post('/{id}/change-password', [UserController::class, 'changePassword']);
+        });
+        // ==================== ROLES ====================
+        Route::prefix('roles')->group(function () {
+            Route::get('/', [RoleController::class, 'index']);
+            Route::post('/', [RoleController::class, 'store']);
+            Route::get('/activos', [RoleController::class, 'activos']);
+            Route::get('/stats/general', [RoleController::class, 'estadisticas']);
+            Route::get('/{id}', [RoleController::class, 'show']);
+            Route::put('/{id}', [RoleController::class, 'update']);
+            Route::patch('/{id}', [RoleController::class, 'update']);
+            Route::delete('/{id}', [RoleController::class, 'destroy']);
+            Route::patch('/{id}/toggle-status', [RoleController::class, 'toggleStatus']);
+            Route::get('/{id}/users', [RoleController::class, 'getUsersByRole']);
         });
 
         Route::prefix('especialidades')->group(function () {
@@ -171,6 +191,42 @@ Route::prefix('v1')->group(function () {
         // POST /api/medicos/1/change-password
         Route::post('/{id}/change-password', [MedicoController::class, 'changePassword']);
     });
+    Route::prefix('utils')->middleware('auth:api')->group(function () {
+        // Listar médicos por especialidad
+        Route::post('/medicos-por-especialidad', [UtilsController::class, 'medicosPorEspecialidad']);
+        // Obtener horarios de un médico
+        Route::post('/horarios-medico', [UtilsController::class, 'horariosMedico']);
+        // Crear horario de médico
+        Route::post('/crear-horario', [UtilsController::class, 'crearHorario']);
+        // Obtener citas disponibles
+        Route::post('/citas-disponibles', [UtilsController::class, 'citasDisponibles']);
+        // Tipos de atención
+        Route::post('/tipos-atencion', [UtilsController::class, 'tiposAtencion']);
+        // Tipos de cobertura
+        Route::post('/tipos-cobertura', [UtilsController::class, 'tiposCobertura']);
+        // Estados de atención
+        Route::post('/estados-atencion', [UtilsController::class, 'estadosAtencion']);
+        // Especialidades activas
+        Route::post('/especialidades', [UtilsController::class, 'especialidades']);
+        // Tipos de sangre
+        Route::post('/tipos-sangre', [UtilsController::class, 'tiposSangre']);
+        // Tipos de documento
+        Route::post('/tipos-documento', [UtilsController::class, 'tiposDocumento']);
+
+
+        // ==================== GENERADORES ====================
+
+        // Generar número de historia clínica
+        Route::post('/generar-numero-historia', [UtilsController::class, 'generarNumeroHistoria']);
+
+        // Generar número de atención
+        Route::post('/generar-numero-atencion', [UtilsController::class, 'generarNumeroAtencion']);
+
+        // Verificar disponibilidad de número de historia
+        Route::post('/verificar-numero-historia', [UtilsController::class, 'verificarNumeroHistoria']);
+    });
+
+
 
     Route::prefix('consultas-externas')->group(function () {
         // Listar todas las consultas externas (paginado)

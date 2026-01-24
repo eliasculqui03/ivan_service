@@ -2,125 +2,184 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\UpdateUserRequest;
+use App\Http\Resources\UserResource;
+use App\Services\UserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
-class UsersController extends Controller
+class UserController extends Controller
 {
-    /**
-     * Validate dangerous characters
-     */
-    private function hasDangerousChars($value): bool
+    protected UserService $userService;
+
+    public function __construct(UserService $userService)
     {
-        if (is_null($value)) return false;
-        return (bool) preg_match("/[<>'\"]/", $value);
+        $this->userService = $userService;
     }
 
     /**
-     * Check multiple fields for dangerous characters
+     * GET /api/users
      */
-    private function checkDangerousFields(array $fields): ?JsonResponse
+    public function index(Request $request): AnonymousResourceCollection
     {
-        foreach ($fields as $field => $value) {
-            if ($this->hasDangerousChars($value)) {
-                return response()->json([
-                    'status' => 422,
-                    'message' => 'Validation error',
-                    'errors' => [$field => ["The $field contains invalid characters."]]
-                ], 200);
-            }
-        }
-        return null;
+        $filters = [
+            'status' => $request->input('status'),
+            'role_id' => $request->input('role_id'),
+            'search' => $request->input('search'),
+            'sort_by' => $request->input('sort_by', 'id'),
+            'sort_order' => $request->input('sort_order', 'desc'),
+        ];
+
+        $perPage = $request->input('per_page', 15);
+        $users = $this->userService->getAllPaginated($filters, $perPage);
+
+        return UserResource::collection($users);
     }
 
     /**
-     * Get users with pagination and search
+     * POST /api/users
      */
-    public function getUsers(Request $request): JsonResponse
+    public function store(StoreUserRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'page' => 'integer',
-            'per_page' => 'integer',
-            'search' => 'string|nullable'
+        try {
+            $user = $this->userService->create($request->validated());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario creado exitosamente',
+                'data' => new UserResource($user),
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * GET /api/users/{id}
+     */
+    public function show(int $id): JsonResponse
+    {
+        try {
+            $data = $this->userService->getByIdWithRoles($id);
+
+            return response()->json([
+                'success' => true,
+                'data' => new UserResource($data['user']),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuario no encontrado',
+            ], 404);
+        }
+    }
+
+    /**
+     * PUT/PATCH /api/users/{id}
+     */
+    public function update(UpdateUserRequest $request, int $id): JsonResponse
+    {
+        try {
+            $user = $this->userService->update($id, $request->validated());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario actualizado exitosamente',
+                'data' => new UserResource($user),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * DELETE /api/users/{id}
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        try {
+            $this->userService->delete($id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario eliminado exitosamente',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * POST /api/users/{id}/toggle-status
+     */
+    public function toggleStatus(int $id): JsonResponse
+    {
+        try {
+            $user = $this->userService->toggleStatus($id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Estado actualizado exitosamente',
+                'data' => new UserResource($user),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
+        }
+    }
+
+    /**
+     * POST /api/users/{id}/change-password
+     */
+    public function changePassword(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'new_password' => 'required|string|min:8',
         ]);
 
-        if ($validator->fails()) {
+        try {
+            $this->userService->changePassword($id, $request->new_password);
+
             return response()->json([
-                'status' => 422,
-                'message' => 'Validation error',
-                'errors' => $validator->errors()
-            ], 200);
-        }
-
-        // Validate dangerous characters
-        $dangerousCheck = $this->checkDangerousFields([
-            'search' => $request->search
-        ]);
-        if ($dangerousCheck) return $dangerousCheck;
-
-        $page = $request->input('page', 1);
-        $perPage = $request->input('per_page', 10);
-        $search = $request->input('search', '');
-
-        // Count query
-        $countQuery = "SELECT COUNT(*) as total FROM users WHERE 1=1";
-        $params = [];
-
-        if (!empty($search)) {
-            $countQuery .= " AND (name LIKE ? OR email LIKE ? OR username LIKE ? OR phone LIKE ?)";
-            $searchParam = "%{$search}%";
-            $params = [$searchParam, $searchParam, $searchParam, $searchParam];
-        }
-
-        $totalResult = DB::select($countQuery, $params);
-        $total = $totalResult[0]->total;
-
-        // Data query
-        $offset = ($page - 1) * $perPage;
-        $dataQuery = "SELECT * FROM users WHERE 1=1";
-
-        if (!empty($search)) {
-            $dataQuery .= " AND (name LIKE ? OR email LIKE ? OR username LIKE ? OR phone LIKE ?)";
-        }
-
-        $dataQuery .= " ORDER BY id DESC LIMIT ? OFFSET ?";
-        $params[] = $perPage;
-        $params[] = $offset;
-
-        $users = DB::select($dataQuery, $params);
-
-        if (empty($users)) {
+                'success' => true,
+                'message' => 'Contraseña actualizada exitosamente',
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
-                'status' => 204,
-                'message' => 'No content'
-            ], 200);
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
         }
+    }
 
-        $lastPage = ceil($total / $perPage);
-        $from = ($page - 1) * $perPage + 1;
-        $to = min($page * $perPage, $total);
+    /**
+     * GET /api/users/stats/general
+     */
+    public function estadisticas(): JsonResponse
+    {
+        $estadisticas = $this->userService->getEstadisticas();
 
         return response()->json([
-            'status' => 200,
-            'message' => 'Users retrieved successfully',
-            'data' => $users,
-            'data_external' => [
-                'total_result' => $total,
-                'page' => $page,
-                'per_page' => $perPage,
-                'last_page' => $lastPage,
-                'from' => $from,
-                'to' => $to
-            ]
-        ], 200);
+            'success' => true,
+            'data' => $estadisticas,
+        ]);
     }
-
-    /**
-     * Create user
-     */
     public function createUser(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -209,249 +268,6 @@ class UsersController extends Controller
             'status' => 200,
             'message' => 'User created successfully',
             'data' => $user[0] ?? null
-        ], 200);
-    }
-
-    /**
-     * User detail
-     */
-    public function detailUser(Request $request): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'id' => 'required|integer'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => 422,
-                'message' => 'Validation error',
-                'errors' => $validator->errors()
-            ], 200);
-        }
-
-        $user = DB::select("SELECT * FROM users WHERE id = ?", [$request->id]);
-
-        if (empty($user)) {
-            return response()->json([
-                'status' => 404,
-                'message' => 'User not found',
-            ], 200);
-        }
-
-        // Get user roles
-        $roles = DB::select("
-            SELECT r.id, r.name 
-            FROM roles_users ru 
-            INNER JOIN roles r ON r.id = ru.id_role 
-            WHERE ru.id_user = ?
-        ", [$request->id]);
-
-        return response()->json([
-            'status' => 200,
-            'message' => 'User retrieved successfully',
-            'data' => $user[0],
-            'roles' => $roles,
-        ], 200);
-    }
-
-    /**
-     * Update user
-     */
-    public function updateUser(Request $request): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'id' => 'required|integer',
-            'name' => 'required|string|max:255',
-            'email' => 'required|email',
-            'username' => 'nullable|string|max:50',
-            'phone' => 'nullable|string|max:20',
-            'avatar_url' => 'nullable|string',
-            'language' => 'nullable|string|max:5',
-            'timezone' => 'nullable|string|max:50',
-            'notifications_enabled' => 'nullable|boolean',
-            'marketing_consent' => 'nullable|boolean',
-            'roles' => 'nullable|array',
-            'roles.*' => 'integer',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => 422,
-                'message' => 'Validation error',
-                'errors' => $validator->errors()
-            ], 200);
-        }
-
-        // Validate dangerous characters
-        $dangerousCheck = $this->checkDangerousFields([
-            'name' => $request->name,
-            'email' => $request->email,
-            'username' => $request->username,
-            'phone' => $request->phone,
-        ]);
-        if ($dangerousCheck) return $dangerousCheck;
-
-        $user = DB::select("SELECT * FROM users WHERE id = ?", [$request->id]);
-
-        if (empty($user)) {
-            return response()->json([
-                'status' => 404,
-                'message' => 'User not found'
-            ], 200);
-        }
-
-        $user = $user[0];
-
-        // Check email duplicate
-        $emailExists = DB::select("SELECT id FROM users WHERE id != ? AND email = ? LIMIT 1", [$request->id, $request->email]);
-        if (!empty($emailExists)) {
-            return response()->json([
-                'status' => 422,
-                'message' => 'Duplicate data',
-                'errors' => ['email' => ['Email already registered.']]
-            ], 200);
-        }
-
-        // Check username duplicate
-        if ($request->username) {
-            $usernameExists = DB::select("SELECT id FROM users WHERE id != ? AND username = ? LIMIT 1", [$request->id, $request->username]);
-            if (!empty($usernameExists)) {
-                return response()->json([
-                    'status' => 422,
-                    'message' => 'Duplicate data',
-                    'errors' => ['username' => ['Username already registered.']]
-                ], 200);
-            }
-        }
-
-        // Update user
-        DB::update("
-            UPDATE users SET 
-                name = ?,
-                email = ?,
-                username = ?,
-                phone = ?,
-                language = ?,
-                timezone = ?,
-                notifications_enabled = ?,
-                marketing_consent = ?,
-                updated_at = ?
-            WHERE id = ?
-        ", [
-            $request->name,
-            $request->email,
-            $request->username,
-            $request->phone,
-            $request->language ?? $user->language,
-            $request->timezone ?? $user->timezone,
-            $request->notifications_enabled ?? $user->notifications_enabled,
-            $request->marketing_consent ?? $user->marketing_consent,
-            now(),
-            $request->id
-        ]);
-
-        // Update roles
-        if ($request->has('roles')) {
-            DB::delete("DELETE FROM roles_users WHERE id_user = ?", [$request->id]);
-
-            if (count($request->roles) > 0) {
-                foreach ($request->roles as $roleId) {
-                    DB::insert("INSERT INTO roles_users (id_user, id_role) VALUES (?, ?)", [$request->id, $roleId]);
-                }
-            }
-        }
-
-        $user = DB::select("SELECT * FROM users WHERE id = ?", [$request->id]);
-
-        return response()->json([
-            'status' => 200,
-            'message' => 'User updated successfully',
-            'data' => $user[0] ?? null
-        ], 200);
-    }
-
-    /**
-     * Change status
-     */
-    public function changeStatus(Request $request): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'id' => 'required|integer'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => 422,
-                'message' => 'Validation error',
-                'errors' => $validator->errors()
-            ], 200);
-        }
-
-        $user = DB::select("SELECT * FROM users WHERE id = ?", [$request->id]);
-
-        if (empty($user)) {
-            return response()->json([
-                'status' => 404,
-                'message' => 'User not found'
-            ], 200);
-        }
-
-        $newStatus = $user[0]->status == 1 ? 0 : 1;
-
-        DB::update("UPDATE users SET status = ?, updated_at = ? WHERE id = ?", [
-            $newStatus,
-            now(),
-            $request->id
-        ]);
-
-        return response()->json([
-            'status' => 200,
-            'message' => 'Status changed successfully'
-        ], 200);
-    }
-
-    /**
-     * Change password
-     */
-    public function changePassword(Request $request): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'id' => 'required|integer',
-            'new_password' => 'required|string|min:8',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => 422,
-                'message' => 'Validation error',
-                'errors' => $validator->errors()
-            ], 200);
-        }
-
-        // Validate dangerous characters
-        $dangerousCheck = $this->checkDangerousFields([
-            'new_password' => $request->new_password,
-        ]);
-        if ($dangerousCheck) return $dangerousCheck;
-
-        $user = DB::select("SELECT id FROM users WHERE id = ?", [$request->id]);
-
-        if (empty($user)) {
-            return response()->json([
-                'status' => 404,
-                'message' => 'User not found'
-            ], 200);
-        }
-
-        DB::update("UPDATE users SET password = ?, updated_at = ? WHERE id = ?", [
-            Hash::make($request->new_password),
-            now(),
-            $request->id
-        ]);
-
-        return response()->json([
-            'status' => 200,
-            'message' => 'Password changed successfully'
         ], 200);
     }
 }
