@@ -2,7 +2,11 @@
 
 use App\Http\Controllers\AtencionController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CirugiaController;
+use App\Http\Controllers\ConsultaExternaController;
 use App\Http\Controllers\EspecialidadController;
+use App\Http\Controllers\ExamenLaboratorioController;
+use App\Http\Controllers\MedicoController;
 use App\Http\Controllers\PacienteController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
@@ -16,7 +20,7 @@ Route::prefix('v1')->group(function () {
 
     Route::post('/users/create', [UsersController::class, 'createUser']);
 
-    Route::middleware('jwt')->group(function () {
+ Route::middleware('auth:api')->group(function () {
         // Auth
         Route::prefix('auth')->group(function () {
             Route::post('/me', [AuthController::class, 'me']);
