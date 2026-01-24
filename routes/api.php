@@ -192,39 +192,23 @@ Route::prefix('v1')->group(function () {
         Route::post('/{id}/change-password', [MedicoController::class, 'changePassword']);
     });
     Route::prefix('utils')->middleware('auth:api')->group(function () {
-        // Listar médicos por especialidad
+        // ==================== MÉDICOS ====================
         Route::post('/medicos-por-especialidad', [UtilsController::class, 'medicosPorEspecialidad']);
-        // Obtener horarios de un médico
+        // ==================== HORARIOS ====================
+        Route::post('/crear-horario-fecha', [UtilsController::class, 'crearHorarioFecha']);
+        Route::post('/crear-horario-recurrente', [UtilsController::class, 'crearHorarioRecurrente']);
         Route::post('/horarios-medico', [UtilsController::class, 'horariosMedico']);
-        // Crear horario de médico
-        Route::post('/crear-horario', [UtilsController::class, 'crearHorario']);
-        // Obtener citas disponibles
         Route::post('/citas-disponibles', [UtilsController::class, 'citasDisponibles']);
-        // Tipos de atención
+        // ==================== CATÁLOGOS ====================
         Route::post('/tipos-atencion', [UtilsController::class, 'tiposAtencion']);
-        // Tipos de cobertura
         Route::post('/tipos-cobertura', [UtilsController::class, 'tiposCobertura']);
-        // Estados de atención
         Route::post('/estados-atencion', [UtilsController::class, 'estadosAtencion']);
-        // Especialidades activas
         Route::post('/especialidades', [UtilsController::class, 'especialidades']);
-        // Tipos de sangre
-        Route::post('/tipos-sangre', [UtilsController::class, 'tiposSangre']);
-        // Tipos de documento
-        Route::post('/tipos-documento', [UtilsController::class, 'tiposDocumento']);
-
-
         // ==================== GENERADORES ====================
-
-        // Generar número de historia clínica
         Route::post('/generar-numero-historia', [UtilsController::class, 'generarNumeroHistoria']);
-
-        // Generar número de atención
         Route::post('/generar-numero-atencion', [UtilsController::class, 'generarNumeroAtencion']);
-
-        // Verificar disponibilidad de número de historia
-        Route::post('/verificar-numero-historia', [UtilsController::class, 'verificarNumeroHistoria']);
     });
+
 
 
 

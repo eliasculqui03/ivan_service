@@ -3,47 +3,79 @@
 namespace App\Services;
 
 use App\Models\HorarioMedico;
+use App\Models\Atenciones;
 use App\Models\HorarioMedicos;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class HorarioMedicoService
 {
     /**
-     * Obtener horarios de un médico
+     * OPCIÓN 1: Crear horario para fecha específica
+     * 
+     * Ejemplo: 24-01-2026, 8:00 AM - 12:00 PM, 20 min por paciente
      */
-    public function getHorariosPorMedico(int $medicoId): Collection
-    {
-        return HorarioMedicos::porMedico($medicoId)
-            ->activos()
-            ->orderBy('dia_semana')
-            ->orderBy('hora_inicio')
-            ->get();
-    }
-
-    /**
-     * Obtener horarios de un médico para un día específico
-     */
-    public function getHorariosPorMedicoYDia(int $medicoId, int $dia): Collection
-    {
-        return HorarioMedicos::porMedico($medicoId)
-            ->porDia($dia)
-            ->activos()
-            ->orderBy('hora_inicio')
-            ->get();
-    }
-
-    /**
-     * Crear horario
-     */
-    public function create(array $data): HorarioMedicos
+    public function crearHorarioFechaEspecifica(array $data): HorarioMedicos
     {
         DB::beginTransaction();
-        
+
         try {
-            // Verificar que no haya conflicto de horarios
-            $conflicto = $this->verificarConflicto(
+            // Verificar conflicto
+            $conflicto = $this->verificarConflictoFecha(
+                $data['medico_id'],
+                $data['fecha'],
+                $data['hora_inicio'],
+                $data['hora_fin']
+            );
+
+            if ($conflicto) {
+                throw new \Exception('Ya existe un horario que se superpone en esta fecha.');
+            }
+
+            $horario = HorarioMedicos::create([
+                'medico_id' => $data['medico_id'],
+                'fecha' => $data['fecha'],
+                'dia_semana' => null,  // No aplica
+                'hora_inicio' => $data['hora_inicio'],
+                'hora_fin' => $data['hora_fin'],
+                'duracion_cita' => $data['duracion_cita'] ?? 30,
+                'cupo_maximo' => $data['cupo_maximo'] ?? null,
+                'tipo' => 'fecha_especifica',
+                'activo' => true,
+                'observaciones' => $data['observaciones'] ?? null,
+            ]);
+
+            DB::commit();
+
+            Log::info('Horario fecha específica creado', [
+                'id' => $horario->id,
+                'medico_id' => $horario->medico_id,
+                'fecha' => $horario->fecha->format('Y-m-d'),
+                'horarios_generados' => count($horario->generarHorariosCitas()),
+            ]);
+
+            return $horario;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al crear horario fecha específica', ['error' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
+    /**
+     * OPCIÓN 2: Crear horario recurrente (cada semana)
+     * 
+     * Ejemplo: Todos los Lunes, 8:00 AM - 12:00 PM, 30 min por paciente
+     */
+    public function crearHorarioRecurrente(array $data): HorarioMedicos
+    {
+        DB::beginTransaction();
+
+        try {
+            // Verificar conflicto
+            $conflicto = $this->verificarConflictoDia(
                 $data['medico_id'],
                 $data['dia_semana'],
                 $data['hora_inicio'],
@@ -51,26 +83,190 @@ class HorarioMedicoService
             );
 
             if ($conflicto) {
-                throw new \Exception('Ya existe un horario que se superpone con este rango.');
+                throw new \Exception('Ya existe un horario que se superpone en este día de la semana.');
             }
 
-            $horario = HorarioMedicos::create($data);
+            $horario = HorarioMedicos::create([
+                'medico_id' => $data['medico_id'],
+                'fecha' => null,  // No aplica
+                'dia_semana' => $data['dia_semana'],
+                'hora_inicio' => $data['hora_inicio'],
+                'hora_fin' => $data['hora_fin'],
+                'duracion_cita' => $data['duracion_cita'] ?? 30,
+                'cupo_maximo' => $data['cupo_maximo'] ?? null,
+                'tipo' => 'recurrente',
+                'activo' => true,
+                'observaciones' => $data['observaciones'] ?? null,
+            ]);
 
             DB::commit();
-            
-            Log::info('Horario de médico creado', [
+
+            Log::info('Horario recurrente creado', [
                 'id' => $horario->id,
                 'medico_id' => $horario->medico_id,
-                'dia' => $horario->dia_nombre,
+                'dia_semana' => $horario->dia_nombre,
             ]);
 
             return $horario;
-
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al crear horario', ['error' => $e->getMessage()]);
+            Log::error('Error al crear horario recurrente', ['error' => $e->getMessage()]);
             throw $e;
         }
+    }
+
+    /**
+     * Obtener citas disponibles para un médico en una fecha
+     * 
+     * PRIORIDAD:
+     * 1. Horarios de fecha específica
+     * 2. Horarios recurrentes (si no hay específicos)
+     */
+    public function getCitasDisponibles(int $medicoId, string $fecha): array
+    {
+        $fecha = Carbon::parse($fecha);
+        $diaSemana = $fecha->dayOfWeekIso; // 1=Lunes, 7=Domingo
+
+        // PRIORIDAD 1: Buscar horarios de fecha específica
+        $horariosEspecificos = HorarioMedicos::porMedico($medicoId)
+            ->fechaEspecifica()
+            ->porFecha($fecha)
+            ->activos()
+            ->orderBy('hora_inicio')
+            ->get();
+
+        if ($horariosEspecificos->count() > 0) {
+            return $this->generarCitasDesdeHorarios($horariosEspecificos, $fecha);
+        }
+
+        // PRIORIDAD 2: Buscar horarios recurrentes
+        $horariosRecurrentes = HorarioMedicos::porMedico($medicoId)
+            ->recurrente()
+            ->porDia($diaSemana)
+            ->activos()
+            ->orderBy('hora_inicio')
+            ->get();
+
+        return $this->generarCitasDesdeHorarios($horariosRecurrentes, $fecha);
+    }
+
+    /**
+     * Generar lista de citas desde horarios (con verificación de ocupación)
+     */
+    private function generarCitasDesdeHorarios($horarios, $fecha): array
+    {
+        $citasDisponibles = [];
+
+        foreach ($horarios as $horario) {
+            $horariosGenerados = $horario->generarHorariosCitas();
+
+            foreach ($horariosGenerados as $horaCita) {
+                // Verificar si ya está ocupada
+                $ocupada = $this->verificarHoraOcupada(
+                    $horario->medico_id,
+                    $fecha,
+                    $horaCita['hora']
+                );
+
+                $citasDisponibles[] = [
+                    'hora' => $horaCita['hora'],
+                    'horario_id' => $horario->id,
+                    'duracion' => $horario->duracion_cita,
+                    'ocupada' => $ocupada,
+                    'disponible' => !$ocupada,
+                    'tipo_horario' => $horario->tipo,
+                ];
+            }
+        }
+
+        return $citasDisponibles;
+    }
+
+    /**
+     * Verificar si una hora ya está ocupada
+     */
+    private function verificarHoraOcupada(int $medicoId, $fecha, string $hora): bool
+    {
+        return Atenciones::where('medico_id', $medicoId)
+            ->whereDate('fecha_atencion', $fecha)
+            ->where('hora_atencion', $hora)
+            ->whereNotIn('estado', ['Cancelada', 'No Asistió'])
+            ->exists();
+    }
+
+    /**
+     * Verificar conflicto de horarios para fecha específica
+     */
+    private function verificarConflictoFecha(
+        int $medicoId,
+        string $fecha,
+        string $horaInicio,
+        string $horaFin,
+        ?int $exceptId = null
+    ): bool {
+        $query = HorarioMedicos::porMedico($medicoId)
+            ->where('fecha', $fecha)
+            ->where(function ($q) use ($horaInicio, $horaFin) {
+                $q->whereBetween('hora_inicio', [$horaInicio, $horaFin])
+                    ->orWhereBetween('hora_fin', [$horaInicio, $horaFin])
+                    ->orWhere(function ($q2) use ($horaInicio, $horaFin) {
+                        $q2->where('hora_inicio', '<=', $horaInicio)
+                            ->where('hora_fin', '>=', $horaFin);
+                    });
+            });
+
+        if ($exceptId) {
+            $query->where('id', '!=', $exceptId);
+        }
+
+        return $query->exists();
+    }
+
+    /**
+     * Verificar conflicto de horarios para día recurrente
+     */
+    private function verificarConflictoDia(
+        int $medicoId,
+        int $dia,
+        string $horaInicio,
+        string $horaFin,
+        ?int $exceptId = null
+    ): bool {
+        $query = HorarioMedicos::porMedico($medicoId)
+            ->recurrente()
+            ->porDia($dia)
+            ->where(function ($q) use ($horaInicio, $horaFin) {
+                $q->whereBetween('hora_inicio', [$horaInicio, $horaFin])
+                    ->orWhereBetween('hora_fin', [$horaInicio, $horaFin])
+                    ->orWhere(function ($q2) use ($horaInicio, $horaFin) {
+                        $q2->where('hora_inicio', '<=', $horaInicio)
+                            ->where('hora_fin', '>=', $horaFin);
+                    });
+            });
+
+        if ($exceptId) {
+            $query->where('id', '!=', $exceptId);
+        }
+
+        return $query->exists();
+    }
+
+    /**
+     * Obtener todos los horarios de un médico
+     */
+    public function getHorariosPorMedico(int $medicoId, ?string $tipo = null): Collection
+    {
+        $query = HorarioMedicos::porMedico($medicoId)->activos();
+
+        if ($tipo === 'fecha_especifica') {
+            $query->fechaEspecifica()->orderBy('fecha')->orderBy('hora_inicio');
+        } elseif ($tipo === 'recurrente') {
+            $query->recurrente()->orderBy('dia_semana')->orderBy('hora_inicio');
+        } else {
+            $query->orderBy('fecha')->orderBy('dia_semana')->orderBy('hora_inicio');
+        }
+
+        return $query->get();
     }
 
     /**
@@ -79,33 +275,16 @@ class HorarioMedicoService
     public function update(int $id, array $data): HorarioMedicos
     {
         DB::beginTransaction();
-        
+
         try {
             $horario = HorarioMedicos::findOrFail($id);
-
-            // Verificar conflictos (excluyendo el horario actual)
-            if (isset($data['hora_inicio']) && isset($data['hora_fin'])) {
-                $conflicto = $this->verificarConflicto(
-                    $data['medico_id'] ?? $horario->medico_id,
-                    $data['dia_semana'] ?? $horario->dia_semana,
-                    $data['hora_inicio'],
-                    $data['hora_fin'],
-                    $id
-                );
-
-                if ($conflicto) {
-                    throw new \Exception('Ya existe un horario que se superpone con este rango.');
-                }
-            }
-
             $horario->update($data);
 
             DB::commit();
-            
+
             Log::info('Horario actualizado', ['id' => $horario->id]);
 
             return $horario->fresh();
-
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -123,61 +302,5 @@ class HorarioMedicoService
         Log::info('Horario eliminado', ['id' => $id]);
 
         return true;
-    }
-
-    /**
-     * Verificar si hay conflicto de horarios
-     */
-    private function verificarConflicto(
-        int $medicoId, 
-        int $dia, 
-        string $horaInicio, 
-        string $horaFin, 
-        ?int $exceptId = null
-    ): bool {
-        $query = HorarioMedicos::porMedico($medicoId)
-            ->porDia($dia)
-            ->where(function($q) use ($horaInicio, $horaFin) {
-                $q->whereBetween('hora_inicio', [$horaInicio, $horaFin])
-                  ->orWhereBetween('hora_fin', [$horaInicio, $horaFin])
-                  ->orWhere(function($q2) use ($horaInicio, $horaFin) {
-                      $q2->where('hora_inicio', '<=', $horaInicio)
-                         ->where('hora_fin', '>=', $horaFin);
-                  });
-            });
-
-        if ($exceptId) {
-            $query->where('id', '!=', $exceptId);
-        }
-
-        return $query->exists();
-    }
-
-    /**
-     * Obtener citas disponibles para un médico en una fecha
-     */
-    public function getCitasDisponibles(int $medicoId, string $fecha): array
-    {
-        $diaSemana = \Carbon\Carbon::parse($fecha)->dayOfWeekIso; // 1=Lunes, 7=Domingo
-        
-        $horarios = $this->getHorariosPorMedicoYDia($medicoId, $diaSemana);
-        
-        $citasDisponibles = [];
-        
-        foreach ($horarios as $horario) {
-            $horariosGenerados = $horario->generarHorariosCitas();
-            
-            foreach ($horariosGenerados as $hora) {
-                // Aquí podrías verificar si ya hay cita ocupada
-                // Por ahora retornamos todos los horarios posibles
-                $citasDisponibles[] = [
-                    'hora' => $hora,
-                    'horario_id' => $horario->id,
-                    'duracion' => $horario->duracion_cita,
-                ];
-            }
-        }
-        
-        return $citasDisponibles;
     }
 }

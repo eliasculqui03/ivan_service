@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Medicos;
-use App\Models\HorarioMedico;
 use App\Services\HorarioMedicoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -59,79 +58,48 @@ class UtilsController extends Controller
         ]);
     }
 
-    // ==================== HORARIOS DE MÉDICOS ====================
+    // ==================== HORARIOS ====================
 
     /**
-     * Obtener horarios de un médico
-     * POST /api/utils/horarios-medico
+     * OPCIÓN 1: Crear horario para FECHA ESPECÍFICA
+     * POST /api/utils/crear-horario-fecha
+     * 
+     * Ejemplo: 24-01-2026, 8:00 AM - 12:00 PM, 20 min por paciente
      */
-    public function horariosMedico(Request $request): JsonResponse
+    public function crearHorarioFecha(Request $request): JsonResponse
     {
         $request->validate([
             'medico_id' => 'required|integer|exists:medicos,id',
-            'dia_semana' => 'nullable|integer|min:1|max:7',
-        ]);
-
-        if ($request->has('dia_semana')) {
-            $horarios = $this->horarioService->getHorariosPorMedicoYDia(
-                $request->medico_id,
-                $request->dia_semana
-            );
-        } else {
-            $horarios = $this->horarioService->getHorariosPorMedico($request->medico_id);
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => $horarios->map(function($horario) {
-                return [
-                    'id' => $horario->id,
-                    'dia_semana' => $horario->dia_semana,
-                    'dia_nombre' => $horario->dia_nombre,
-                    'hora_inicio' => $horario->hora_inicio,
-                    'hora_fin' => $horario->hora_fin,
-                    'horario_formateado' => $horario->horario_formateado,
-                    'duracion_cita' => $horario->duracion_cita,
-                    'cupo_maximo' => $horario->cupo_maximo,
-                    'cupos_disponibles' => $horario->calcularCuposDisponibles(),
-                    'activo' => $horario->activo,
-                ];
-            }),
-        ]);
-    }
-
-    /**
-     * Crear horario de médico
-     * POST /api/utils/crear-horario
-     */
-    public function crearHorario(Request $request): JsonResponse
-    {
-        $request->validate([
-            'medico_id' => 'required|integer|exists:medicos,id',
-            'dia_semana' => 'required|integer|min:1|max:7',
+            'fecha' => 'required|date|after_or_equal:today',
             'hora_inicio' => 'required|date_format:H:i',
             'hora_fin' => 'required|date_format:H:i|after:hora_inicio',
-            'duracion_cita' => 'nullable|integer|min:5|max:120',
+            'duracion_cita' => 'required|integer|min:5|max:120',
             'cupo_maximo' => 'nullable|integer|min:1',
             'observaciones' => 'nullable|string',
         ]);
 
         try {
-            $horario = $this->horarioService->create([
+            $horario = $this->horarioService->crearHorarioFechaEspecifica([
                 'medico_id' => $request->medico_id,
-                'dia_semana' => $request->dia_semana,
+                'fecha' => $request->fecha,
                 'hora_inicio' => $request->hora_inicio,
                 'hora_fin' => $request->hora_fin,
-                'duracion_cita' => $request->input('duracion_cita', 30),
+                'duracion_cita' => $request->duracion_cita,
                 'cupo_maximo' => $request->cupo_maximo,
-                'activo' => true,
                 'observaciones' => $request->observaciones,
             ]);
+
+            // Generar lista de horarios disponibles
+            $horariosGenerados = $horario->generarHorariosCitas();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Horario creado exitosamente',
-                'data' => $horario,
+                'data' => [
+                    'horario' => $horario,
+                    'total_citas' => count($horariosGenerados),
+                    'horarios_disponibles' => $horariosGenerados,
+                ],
             ], 201);
 
         } catch (\Exception $e) {
@@ -143,8 +111,99 @@ class UtilsController extends Controller
     }
 
     /**
+     * OPCIÓN 2: Crear horario RECURRENTE (semanal)
+     * POST /api/utils/crear-horario-recurrente
+     * 
+     * Ejemplo: Todos los Lunes, 8:00 AM - 12:00 PM, 30 min
+     */
+    public function crearHorarioRecurrente(Request $request): JsonResponse
+    {
+        $request->validate([
+            'medico_id' => 'required|integer|exists:medicos,id',
+            'dia_semana' => 'required|integer|min:1|max:7',
+            'hora_inicio' => 'required|date_format:H:i',
+            'hora_fin' => 'required|date_format:H:i|after:hora_inicio',
+            'duracion_cita' => 'required|integer|min:5|max:120',
+            'cupo_maximo' => 'nullable|integer|min:1',
+            'observaciones' => 'nullable|string',
+        ]);
+
+        try {
+            $horario = $this->horarioService->crearHorarioRecurrente([
+                'medico_id' => $request->medico_id,
+                'dia_semana' => $request->dia_semana,
+                'hora_inicio' => $request->hora_inicio,
+                'hora_fin' => $request->hora_fin,
+                'duracion_cita' => $request->duracion_cita,
+                'cupo_maximo' => $request->cupo_maximo,
+                'observaciones' => $request->observaciones,
+            ]);
+
+            $horariosGenerados = $horario->generarHorariosCitas();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Horario recurrente creado exitosamente',
+                'data' => [
+                    'horario' => $horario,
+                    'total_citas' => count($horariosGenerados),
+                    'horarios_disponibles' => $horariosGenerados,
+                ],
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * Listar horarios de un médico
+     * POST /api/utils/horarios-medico
+     */
+    public function horariosMedico(Request $request): JsonResponse
+    {
+        $request->validate([
+            'medico_id' => 'required|integer|exists:medicos,id',
+            'tipo' => 'nullable|in:fecha_especifica,recurrente',
+        ]);
+
+        $horarios = $this->horarioService->getHorariosPorMedico(
+            $request->medico_id,
+            $request->tipo
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => $horarios->map(function($horario) {
+                return [
+                    'id' => $horario->id,
+                    'tipo' => $horario->tipo,
+                    'fecha' => $horario->fecha_formateada,
+                    'dia_semana' => $horario->dia_semana,
+                    'dia_nombre' => $horario->dia_nombre,
+                    'hora_inicio' => $horario->hora_inicio,
+                    'hora_fin' => $horario->hora_fin,
+                    'horario_formateado' => $horario->horario_formateado,
+                    'duracion_cita' => $horario->duracion_cita,
+                    'cupo_maximo' => $horario->cupo_maximo,
+                    'cupos_calculados' => $horario->calcularCuposDisponibles(),
+                    'activo' => $horario->activo,
+                    'observaciones' => $horario->observaciones,
+                ];
+            }),
+        ]);
+    }
+
+    /**
      * Obtener citas disponibles para un médico en una fecha
      * POST /api/utils/citas-disponibles
+     * 
+     * Prioridad:
+     * 1. Horarios de fecha específica
+     * 2. Horarios recurrentes
      */
     public function citasDisponibles(Request $request): JsonResponse
     {
@@ -158,17 +217,27 @@ class UtilsController extends Controller
             $request->fecha
         );
 
+        // Filtrar solo disponibles si se requiere
+        if ($request->input('solo_disponibles', false)) {
+            $citas = array_filter($citas, fn($cita) => $cita['disponible']);
+        }
+
         return response()->json([
             'success' => true,
-            'data' => $citas,
+            'data' => [
+                'fecha' => $request->fecha,
+                'total_horarios' => count($citas),
+                'disponibles' => count(array_filter($citas, fn($c) => $c['disponible'])),
+                'ocupados' => count(array_filter($citas, fn($c) => $c['ocupada'])),
+                'horarios' => $citas,
+            ],
         ]);
     }
 
-    // ==================== TIPOS DE ATENCIÓN ====================
+    // ==================== CATÁLOGOS ====================
 
     /**
-     * Obtener tipos de atención disponibles
-     * POST /api/utils/tipos-atencion
+     * Tipos de atención
      */
     public function tiposAtencion(): JsonResponse
     {
@@ -181,17 +250,11 @@ class UtilsController extends Controller
             'Control',
         ];
 
-        return response()->json([
-            'success' => true,
-            'data' => $tipos,
-        ]);
+        return response()->json(['success' => true, 'data' => $tipos]);
     }
 
-    // ==================== TIPOS DE COBERTURA ====================
-
     /**
-     * Obtener tipos de cobertura disponibles
-     * POST /api/utils/tipos-cobertura
+     * Tipos de cobertura
      */
     public function tiposCobertura(): JsonResponse
     {
@@ -202,17 +265,11 @@ class UtilsController extends Controller
             ['value' => 'Particular', 'label' => 'Particular (Sin seguro)'],
         ];
 
-        return response()->json([
-            'success' => true,
-            'data' => $tipos,
-        ]);
+        return response()->json(['success' => true, 'data' => $tipos]);
     }
 
-    // ==================== ESTADOS DE ATENCIÓN ====================
-
     /**
-     * Obtener estados de atención disponibles
-     * POST /api/utils/estados-atencion
+     * Estados de atención
      */
     public function estadosAtencion(): JsonResponse
     {
@@ -225,85 +282,44 @@ class UtilsController extends Controller
             'No Asistió',
         ];
 
-        return response()->json([
-            'success' => true,
-            'data' => $estados,
-        ]);
+        return response()->json(['success' => true, 'data' => $estados]);
     }
 
-    // ==================== GENERADORES AUTOMÁTICOS ====================
+    // ==================== GENERADORES ====================
 
     /**
      * Generar número de historia clínica
-     * POST /api/utils/generar-numero-historia
      */
     public function generarNumeroHistoria(): JsonResponse
     {
-        $ultimo = DB::table('pacientes')
-            ->orderBy('id', 'desc')
-            ->first();
-
+        $ultimo = DB::table('pacientes')->orderBy('id', 'desc')->first();
         $numero = $ultimo ? $ultimo->id + 1 : 1;
         $numeroHistoria = 'HC' . str_pad($numero, 8, '0', STR_PAD_LEFT);
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'numero_historia' => $numeroHistoria,
-            ],
+            'data' => ['numero_historia' => $numeroHistoria],
         ]);
     }
 
     /**
      * Generar número de atención
-     * POST /api/utils/generar-numero-atencion
      */
     public function generarNumeroAtencion(): JsonResponse
     {
-        $ultimo = DB::table('atenciones')
-            ->orderBy('id', 'desc')
-            ->first();
-
+        $ultimo = DB::table('atenciones')->orderBy('id', 'desc')->first();
         $numero = $ultimo ? $ultimo->id + 1 : 1;
         $fecha = now()->format('Ymd');
         $numeroAtencion = "AT{$fecha}" . str_pad($numero, 4, '0', STR_PAD_LEFT);
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'numero_atencion' => $numeroAtencion,
-            ],
+            'data' => ['numero_atencion' => $numeroAtencion],
         ]);
     }
 
     /**
-     * Verificar disponibilidad de número de historia
-     * POST /api/utils/verificar-numero-historia
-     */
-    public function verificarNumeroHistoria(Request $request): JsonResponse
-    {
-        $request->validate([
-            'numero_historia' => 'required|string',
-        ]);
-
-        $existe = DB::table('pacientes')
-            ->where('numero_historia', $request->numero_historia)
-            ->exists();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'existe' => $existe,
-                'disponible' => !$existe,
-            ],
-        ]);
-    }
-
-    // ==================== CATÁLOGOS ADICIONALES ====================
-
-    /**
-     * Obtener lista de especialidades activas
-     * POST /api/utils/especialidades
+     * Especialidades activas
      */
     public function especialidades(): JsonResponse
     {
@@ -312,47 +328,6 @@ class UtilsController extends Controller
             ->orderBy('nombre')
             ->get(['id', 'nombre', 'codigo']);
 
-        return response()->json([
-            'success' => true,
-            'data' => $especialidades,
-        ]);
-    }
-
-    /**
-     * Obtener tipos de sangre
-     * POST /api/utils/tipos-sangre
-     */
-    public function tiposSangre(): JsonResponse
-    {
-        $tipos = [
-            'A+', 'A-',
-            'B+', 'B-',
-            'AB+', 'AB-',
-            'O+', 'O-',
-        ];
-
-        return response()->json([
-            'success' => true,
-            'data' => $tipos,
-        ]);
-    }
-
-    /**
-     * Obtener tipos de documento
-     * POST /api/utils/tipos-documento
-     */
-    public function tiposDocumento(): JsonResponse
-    {
-        $tipos = [
-            ['value' => 'DNI', 'label' => 'DNI'],
-            ['value' => 'CE', 'label' => 'Carné de Extranjería'],
-            ['value' => 'Pasaporte', 'label' => 'Pasaporte'],
-            ['value' => 'Otro', 'label' => 'Otro'],
-        ];
-
-        return response()->json([
-            'success' => true,
-            'data' => $tipos,
-        ]);
+        return response()->json(['success' => true, 'data' => $especialidades]);
     }
 }
