@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
@@ -105,7 +106,8 @@ class User extends Authenticatable implements JWTSubject
      */
     public function assignRole($roleId)
     {
-        if (!$this->roles()->where('role_id', $roleId)->exists()) {
+        if (!$this->roles()->where('roles.id', $roleId)->exists()) {
+
             $this->roles()->attach($roleId);
         }
         return $this;
@@ -240,5 +242,14 @@ class User extends Authenticatable implements JWTSubject
         $this->status = 0;
         $this->save();
         return $this;
+    }
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Roles::class,
+            'roles_users',
+            'id_user',
+            'id_role'
+        );
     }
 }

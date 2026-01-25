@@ -56,7 +56,6 @@ class ConsultaExternaController extends Controller
                 'message' => 'Consulta externa creada exitosamente',
                 'data' => new ConsultaExternaResource($consulta),
             ], 201);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -79,7 +78,6 @@ class ConsultaExternaController extends Controller
                 'success' => true,
                 'data' => new ConsultaExternaResource($consulta),
             ]);
-
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
@@ -102,13 +100,11 @@ class ConsultaExternaController extends Controller
                 'message' => 'Consulta externa actualizada exitosamente',
                 'data' => new ConsultaExternaResource($consulta),
             ]);
-
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Consulta externa no encontrada',
             ], 404);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -130,7 +126,6 @@ class ConsultaExternaController extends Controller
                 'success' => true,
                 'message' => 'Consulta externa eliminada exitosamente',
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -174,7 +169,6 @@ class ConsultaExternaController extends Controller
                 'message' => 'Consulta completada y firmada exitosamente',
                 'data' => new ConsultaExternaResource($consulta),
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -197,7 +191,6 @@ class ConsultaExternaController extends Controller
                 'message' => 'Consulta guardada como borrador',
                 'data' => new ConsultaExternaResource($consulta),
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -262,7 +255,6 @@ class ConsultaExternaController extends Controller
                 'success' => true,
                 'data' => $resumen,
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -285,7 +277,6 @@ class ConsultaExternaController extends Controller
                 'message' => 'Consulta restaurada exitosamente',
                 'data' => new ConsultaExternaResource($consulta),
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

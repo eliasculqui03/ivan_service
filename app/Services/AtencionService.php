@@ -94,6 +94,17 @@ class AtencionService
 
         return $query->get();
     }
+    /**
+     * Obtener todas las atenciones activas de una fecha específica
+     */
+    public function getActiveByDate(string $fecha): Collection
+    {
+        return Atenciones::with(['paciente', 'medico.especialidad']) // Traemos relaciones clave
+            ->whereDate('fecha_atencion', $fecha)
+            ->where('status', true) // Solo las activas (no eliminadas lógicamente)
+            ->orderBy('hora_ingreso', 'asc') // Ordenadas por hora de llegada
+            ->get();
+    }
 
     /**
      * Obtener atención por ID

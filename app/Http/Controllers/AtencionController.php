@@ -61,6 +61,28 @@ class AtencionController extends Controller
             'data' => $atenciones,
         ]);
     }
+    public function porFecha(Request $request): JsonResponse
+    {
+        $request->validate([
+            'fecha' => 'required|date',
+        ]);
+
+        try {
+            $atenciones = $this->atencionService->getActiveByDate($request->input('fecha'));
+
+            return response()->json([
+                'success' => true,
+                'count' => $atenciones->count(),
+                'data' => $atenciones,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener atenciones',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 
     /**
      * Store a newly created resource in storage.

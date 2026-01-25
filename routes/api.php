@@ -6,10 +6,11 @@ use App\Http\Controllers\CirugiaController;
 use App\Http\Controllers\ConsultaExternaController;
 use App\Http\Controllers\EspecialidadController;
 use App\Http\Controllers\ExamenLaboratorioController;
+use App\Http\Controllers\HorarioMedicosController;
 use App\Http\Controllers\MedicoController;
 use App\Http\Controllers\PacienteController;
 use App\Http\Controllers\RoleController;
-use App\Http\Controllers\UserController;
+
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\UtilsController;
 use Illuminate\Support\Facades\Route;
@@ -21,7 +22,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/validate-token', [AuthController::class, 'validateToken']);
     });
 
-    Route::post('/users/create', [UserController::class, 'createUser']);
+    Route::post('/users/create', [UsersController::class, 'createUser']);
 
     Route::middleware('auth:api')->group(function () {
         // Auth
@@ -33,15 +34,15 @@ Route::prefix('v1')->group(function () {
 
         // Users
         Route::prefix('users')->group(function () {
-            Route::get('/', [UserController::class, 'index']);
-            Route::post('/', [UserController::class, 'store']);
-            Route::get('/stats/general', [UserController::class, 'estadisticas']);
-            Route::get('/{id}', [UserController::class, 'show']);
-            Route::put('/{id}', [UserController::class, 'update']);
-            Route::patch('/{id}', [UserController::class, 'update']);
-            Route::delete('/{id}', [UserController::class, 'destroy']);
-            Route::post('/{id}/toggle-status', [UserController::class, 'toggleStatus']);
-            Route::post('/{id}/change-password', [UserController::class, 'changePassword']);
+            Route::get('/', [UsersController::class, 'index']);
+            Route::post('/', [UsersController::class, 'store']);
+            Route::get('/stats/general', [UsersController::class, 'estadisticas']);
+            Route::get('/{id}', [UsersController::class, 'show']);
+            Route::put('/{id}', [UsersController::class, 'update']);
+            Route::patch('/{id}', [UsersController::class, 'update']);
+            Route::delete('/{id}', [UsersController::class, 'destroy']);
+            Route::post('/{id}/toggle-status', [UsersController::class, 'toggleStatus']);
+            Route::post('/{id}/change-password', [UsersController::class, 'changePassword']);
         });
         // ==================== ROLES ====================
         Route::prefix('roles')->group(function () {
@@ -108,6 +109,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/agenda', [AtencionController::class, 'agenda']);
             Route::post('/trashed', [AtencionController::class, 'trashed']);
             Route::post('/restore', [AtencionController::class, 'restore']);
+            Route::post('/por-fecha', [AtencionController::class, 'porFecha']);
         });
 
         // Cirugías
@@ -145,51 +147,107 @@ Route::prefix('v1')->group(function () {
             Route::post('/trashed', [ExamenLaboratorioController::class, 'trashed']);
             Route::post('/restore', [ExamenLaboratorioController::class, 'restore']);
         });
-    });
+        // ... dentro del grupo medicos ...
 
+        Route::prefix('medicos')->group(function () {
+            // 1. Rutas Generales y Específicas (PRIMERO)
+            Route::get('/', [MedicoController::class, 'index']); // Listar
+            Route::post('/', [MedicoController::class, 'store']); // Crear
 
-    Route::prefix('medicos')->group(function () {
-        // Listar todos los médicos (paginado)
-        // GET /api/medicos?page=1&per_page=15&search=juan&status=1&especialidad_id=1
-        Route::get('/', [MedicoController::class, 'index']);
-        // Crear nuevo médico
-        // POST /api/medicos
-        Route::post('/', [MedicoController::class, 'store']);
-        // Ver un médico específico
-        // GET /api/medicos/1
-        Route::get('/{id}', [MedicoController::class, 'show']);
-        // Actualizar médico
-        // PUT/PATCH /api/medicos/1
-        Route::put('/{id}', [MedicoController::class, 'update']);
-        Route::patch('/{id}', [MedicoController::class, 'update']);
-        // Eliminar médico (soft delete)
-        // DELETE /api/medicos/1
-        Route::delete('/{id}', [MedicoController::class, 'destroy']);
-        // ==================== RUTAS ADICIONALES ====================
-        // Obtener solo médicos activos (sin paginación)
-        // GET /api/medicos/activos/list?especialidad_id=1
-        Route::get('/activos/list', [MedicoController::class, 'activos']);
-        // Buscar médicos
-        // GET /api/medicos/search/query?q=juan
-        Route::get('/search/query', [MedicoController::class, 'search']);
-        // Cambiar estado (activar/desactivar)
-        // PATCH /api/medicos/1/toggle-status
-        Route::patch('/{id}/toggle-status', [MedicoController::class, 'toggleStatus']);
-        // Obtener estadísticas
-        // GET /api/medicos/stats/general
-        Route::get('/stats/general', [MedicoController::class, 'estadisticas']);
-        // Obtener médicos por especialidad
-        // GET /api/medicos/especialidad/1/list
-        Route::get('/especialidad/{especialidadId}/list', [MedicoController::class, 'porEspecialidad']);
-        // Obtener eliminados
-        // GET /api/medicos/trashed/list
-        Route::get('/trashed/list', [MedicoController::class, 'trashed']);
-        // Restaurar eliminado
-        // POST /api/medicos/1/restore
-        Route::post('/{id}/restore', [MedicoController::class, 'restore']);
-        // Cambiar contraseña
-        // POST /api/medicos/1/change-password
-        Route::post('/{id}/change-password', [MedicoController::class, 'changePassword']);
+            // Estas deben ir ANTES de /{id} para que no se confundan con un ID
+            Route::get('/activos/list', [MedicoController::class, 'activos']);
+            Route::get('/search/query', [MedicoController::class, 'search']);
+            Route::get('/stats/general', [MedicoController::class, 'estadisticas']);
+            Route::get('/trashed/list', [MedicoController::class, 'trashed']);
+            // Especialidad también es específica
+            Route::get('/especialidad/{especialidadId}/list', [MedicoController::class, 'porEspecialidad']);
+
+            // 2. Rutas Dinámicas con ID (AL FINAL)
+            Route::get('/{id}', [MedicoController::class, 'show']); // Ver uno
+            Route::put('/{id}', [MedicoController::class, 'update']); // Actualizar
+            Route::patch('/{id}', [MedicoController::class, 'update']); // Actualizar parcial
+            Route::delete('/{id}', [MedicoController::class, 'destroy']); // Eliminar
+
+            // Acciones sobre un ID específico
+            Route::patch('/{id}/toggle-status', [MedicoController::class, 'toggleStatus']);
+            Route::post('/{id}/restore', [MedicoController::class, 'restore']);
+            Route::post('/{id}/change-password', [MedicoController::class, 'changePassword']);
+        });
+        Route::prefix('horarios-medicos')->group(function () {
+            // Listar horarios
+            // GET /api/v1/horarios-medicos?medico_id=1&tipo=recurrente&fecha=2026-02-15
+            Route::get('/', [HorarioMedicosController::class, 'index']);
+            // Ver un horario específico
+            // GET /api/v1/horarios-medicos/1
+            Route::get('/{id}', [HorarioMedicosController::class, 'show']);
+            // Crear horario para fecha específica
+            // POST /api/v1/horarios-medicos/fecha-especifica
+            Route::post('/fecha-especifica', [HorarioMedicosController::class, 'crearFechaEspecifica']);
+            // Crear horario recurrente
+            // POST /api/v1/horarios-medicos/recurrente
+            Route::post('/recurrente', [HorarioMedicosController::class, 'crearRecurrente']);
+            // Actualizar horario
+            // PUT /api/v1/horarios-medicos/1
+            Route::put('/{id}', [HorarioMedicosController::class, 'update']);
+            // Eliminar horario
+            // DELETE /api/v1/horarios-medicos/1
+            Route::delete('/{id}', [HorarioMedicosController::class, 'destroy']);
+            // Obtener horarios de un médico
+            // POST /api/v1/horarios-medicos/por-medico
+            Route::post('/por-medico', [HorarioMedicosController::class, 'porMedico']);
+            // Obtener citas disponibles
+            // POST /api/v1/horarios-medicos/citas-disponibles
+            Route::post('/citas-disponibles', [HorarioMedicosController::class, 'citasDisponibles']);
+            // Activar/Desactivar horario
+            // PATCH /api/v1/horarios-medicos/1/toggle-activo
+            Route::patch('/{id}/toggle-activo', [HorarioMedicosController::class, 'toggleActivo']);
+        });
+
+        Route::prefix('consultas-externas')->group(function () {
+            // Listar todas las consultas externas (paginado)
+            // GET /api/consultas-externas?medico_id=1&paciente_id=1&ficha_completada=1
+            Route::get('/', [ConsultaExternaController::class, 'index']);
+            // Crear nueva consulta externa
+            // POST /api/consultas-externas
+            Route::post('/', [ConsultaExternaController::class, 'store']);
+            // Ver una consulta externa específica
+            // GET /api/consultas-externas/1
+            Route::get('/{id}', [ConsultaExternaController::class, 'show']);
+            // Actualizar consulta externa
+            // PUT/PATCH /api/consultas-externas/1
+            Route::put('/{id}', [ConsultaExternaController::class, 'update']);
+            Route::patch('/{id}', [ConsultaExternaController::class, 'update']);
+            // Eliminar consulta externa (soft delete)
+            // DELETE /api/consultas-externas/1
+            Route::delete('/{id}', [ConsultaExternaController::class, 'destroy']);
+            // Obtener consulta por atención
+            // GET /api/consultas-externas/atencion/1
+            Route::get('/atencion/{atencionId}', [ConsultaExternaController::class, 'getByAtencion']);
+            // Completar y firmar consulta
+            // POST /api/consultas-externas/1/completar
+            Route::post('/{id}/completar', [ConsultaExternaController::class, 'completar']);
+            // Guardar como borrador
+            // POST /api/consultas-externas/1/borrador
+            Route::post('/{id}/borrador', [ConsultaExternaController::class, 'borrador']);
+            // Obtener resumen
+            // GET /api/consultas-externas/1/resumen
+            Route::get('/{id}/resumen', [ConsultaExternaController::class, 'resumen']);
+            // Obtener estadísticas
+            // GET /api/consultas-externas/stats/general
+            Route::get('/stats/general', [ConsultaExternaController::class, 'estadisticas']);
+            // Historial de paciente
+            // GET /api/consultas-externas/paciente/1/historial
+            Route::get('/paciente/{pacienteId}/historial', [ConsultaExternaController::class, 'historial']);
+            // Buscar por diagnóstico
+            // GET /api/consultas-externas/search/diagnostico?q=diabetes
+            Route::get('/search/diagnostico', [ConsultaExternaController::class, 'buscarDiagnostico']);
+            // Obtener eliminadas
+            // GET /api/consultas-externas/trashed/list
+            Route::get('/trashed/list', [ConsultaExternaController::class, 'trashed']);
+            // Restaurar eliminada
+            // POST /api/consultas-externas/1/restore
+            Route::post('/{id}/restore', [ConsultaExternaController::class, 'restore']);
+        });
     });
     Route::prefix('utils')->middleware('auth:api')->group(function () {
         // ==================== MÉDICOS ====================
@@ -207,54 +265,5 @@ Route::prefix('v1')->group(function () {
         // ==================== GENERADORES ====================
         Route::post('/generar-numero-historia', [UtilsController::class, 'generarNumeroHistoria']);
         Route::post('/generar-numero-atencion', [UtilsController::class, 'generarNumeroAtencion']);
-    });
-
-
-
-
-    Route::prefix('consultas-externas')->group(function () {
-        // Listar todas las consultas externas (paginado)
-        // GET /api/consultas-externas?medico_id=1&paciente_id=1&ficha_completada=1
-        Route::get('/', [ConsultaExternaController::class, 'index']);
-        // Crear nueva consulta externa
-        // POST /api/consultas-externas
-        Route::post('/', [ConsultaExternaController::class, 'store']);
-        // Ver una consulta externa específica
-        // GET /api/consultas-externas/1
-        Route::get('/{id}', [ConsultaExternaController::class, 'show']);
-        // Actualizar consulta externa
-        // PUT/PATCH /api/consultas-externas/1
-        Route::put('/{id}', [ConsultaExternaController::class, 'update']);
-        Route::patch('/{id}', [ConsultaExternaController::class, 'update']);
-        // Eliminar consulta externa (soft delete)
-        // DELETE /api/consultas-externas/1
-        Route::delete('/{id}', [ConsultaExternaController::class, 'destroy']);
-        // Obtener consulta por atención
-        // GET /api/consultas-externas/atencion/1
-        Route::get('/atencion/{atencionId}', [ConsultaExternaController::class, 'getByAtencion']);
-        // Completar y firmar consulta
-        // POST /api/consultas-externas/1/completar
-        Route::post('/{id}/completar', [ConsultaExternaController::class, 'completar']);
-        // Guardar como borrador
-        // POST /api/consultas-externas/1/borrador
-        Route::post('/{id}/borrador', [ConsultaExternaController::class, 'borrador']);
-        // Obtener resumen
-        // GET /api/consultas-externas/1/resumen
-        Route::get('/{id}/resumen', [ConsultaExternaController::class, 'resumen']);
-        // Obtener estadísticas
-        // GET /api/consultas-externas/stats/general
-        Route::get('/stats/general', [ConsultaExternaController::class, 'estadisticas']);
-        // Historial de paciente
-        // GET /api/consultas-externas/paciente/1/historial
-        Route::get('/paciente/{pacienteId}/historial', [ConsultaExternaController::class, 'historial']);
-        // Buscar por diagnóstico
-        // GET /api/consultas-externas/search/diagnostico?q=diabetes
-        Route::get('/search/diagnostico', [ConsultaExternaController::class, 'buscarDiagnostico']);
-        // Obtener eliminadas
-        // GET /api/consultas-externas/trashed/list
-        Route::get('/trashed/list', [ConsultaExternaController::class, 'trashed']);
-        // Restaurar eliminada
-        // POST /api/consultas-externas/1/restore
-        Route::post('/{id}/restore', [ConsultaExternaController::class, 'restore']);
     });
 });
