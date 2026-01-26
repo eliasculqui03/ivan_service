@@ -34,6 +34,9 @@ class Pacientes extends Model
         'departamento',
         'lugar_nacimiento',
         'ocupacion',
+        'estado_civil',      // <--- NUEVO
+        'cantidad_hijos',    // <--- NUEVO
+        'ultimo_embarazo',   // <--- NUEVO
         'contacto_emergencia_nombre',
         'contacto_emergencia_telefono',
         'contacto_emergencia_parentesco',

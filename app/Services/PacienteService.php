@@ -111,11 +111,11 @@ class PacienteService
                 throw new \Exception("El documento {$data['documento_identidad']} ya está registrado.");
             }
 
-            // Generar número de historia automático si no se proporciona
+            // Asignar el DNI como Número de Historia (Regla de Negocio Clínica)
             if (empty($data['numero_historia'])) {
-                $data['numero_historia'] = Pacientes::generarNumeroHistoria();
+                // Si existe documento de identidad, úsalo. Si no, genera uno aleatorio como respaldo.
+                $data['numero_historia'] = $data['documento_identidad'] ?? Pacientes::generarNumeroHistoria();
             }
-
             $paciente = Pacientes::create($data);
 
             DB::commit();

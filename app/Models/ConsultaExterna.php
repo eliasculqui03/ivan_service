@@ -10,7 +10,7 @@ class ConsultaExterna extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'consultas_externas';
+    protected $table = 'consulta_externas';
 
     protected $fillable = [
         'atencion_id',

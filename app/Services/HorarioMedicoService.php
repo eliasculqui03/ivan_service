@@ -122,32 +122,58 @@ class HorarioMedicoService
      * 1. Horarios de fecha específica
      * 2. Horarios recurrentes (si no hay específicos)
      */
-    public function getCitasDisponibles(int $medicoId, string $fecha): array
+    public function getCitasDisponibles($medicoId, $fecha)
     {
-        $fecha = Carbon::parse($fecha);
-        $diaSemana = $fecha->dayOfWeekIso; // 1=Lunes, 7=Domingo
+        // 1. Buscar el horario de trabajo del médico para esa fecha
+        // Primero buscamos horario específico, si no, recurrente
+        $horario = HorarioMedicos::where('medico_id', $medicoId)
+            ->where('activo', true)
+            ->where(function ($q) use ($fecha) {
+                $q->where(function ($sub) use ($fecha) {
+                    $sub->where('tipo', 'fecha_especifica')
+                        ->whereDate('fecha', $fecha);
+                })->orWhere(function ($sub) use ($fecha) {
+                    $sub->where('tipo', 'recurrente')
+                        ->where('dia_semana', Carbon::parse($fecha)->dayOfWeekIso);
+                });
+            })
+            // Damos prioridad al horario específico ordenando
+            ->orderByRaw("FIELD(tipo, 'fecha_especifica', 'recurrente')")
+            ->first();
 
-        // PRIORIDAD 1: Buscar horarios de fecha específica
-        $horariosEspecificos = HorarioMedicos::porMedico($medicoId)
-            ->fechaEspecifica()
-            ->porFecha($fecha)
-            ->activos()
-            ->orderBy('hora_inicio')
-            ->get();
-
-        if ($horariosEspecificos->count() > 0) {
-            return $this->generarCitasDesdeHorarios($horariosEspecificos, $fecha);
+        if (!$horario) {
+            return []; // El médico no trabaja ese día
         }
 
-        // PRIORIDAD 2: Buscar horarios recurrentes
-        $horariosRecurrentes = HorarioMedicos::porMedico($medicoId)
-            ->recurrente()
-            ->porDia($diaSemana)
-            ->activos()
-            ->orderBy('hora_inicio')
-            ->get();
+        // 2. Generar TODOS los cupos teóricos (Ej: 12 cupos de 08:00 a 12:00)
+        // Esto devuelve: [['hora' => '08:00'], ['hora' => '08:20']...]
+        $todosLosCupos = $horario->generarHorariosCitas();
 
-        return $this->generarCitasDesdeHorarios($horariosRecurrentes, $fecha);
+        // 3. Buscar qué horas YA ESTÁN OCUPADAS en la tabla 'atenciones'
+        // ¡AQUÍ CORREGIMOS EL ERROR DE LA COLUMNA! Usamos 'hora_ingreso'
+        $horasOcupadas = Atenciones::where('medico_id', $medicoId)
+            ->whereDate('fecha_atencion', $fecha)
+            ->whereNotIn('estado', ['Cancelada', 'No Asistió']) // Ignoramos las canceladas (liberan cupo)
+            ->where('status', true)
+            ->pluck('hora_ingreso') // Obtenemos solo la columna de hora
+            ->map(function ($hora) {
+                // Aseguramos formato H:i (08:00) quitando segundos si los hay
+                return substr($hora, 0, 5);
+            })
+            ->toArray();
+
+        // 4. RESTAR: Filtrar los cupos disponibles
+        $cuposLibres = [];
+
+        foreach ($todosLosCupos as $cupo) {
+            // El método generarHorariosCitas devuelve array con 'hora' y 'timestamp'
+            // Verificamos si la hora del cupo (Ej: "08:20") NO está en la lista de ocupadas
+            if (!in_array($cupo['hora'], $horasOcupadas)) {
+                $cuposLibres[] = $cupo; // Si no está ocupada, la agregamos a disponibles
+            }
+        }
+
+        return $cuposLibres;
     }
 
     /**

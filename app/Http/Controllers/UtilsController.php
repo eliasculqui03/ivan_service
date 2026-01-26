@@ -41,7 +41,7 @@ class UtilsController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $medicos->map(function($medico) {
+            'data' => $medicos->map(function ($medico) {
                 return [
                     'id' => $medico->id,
                     'user_id' => $medico->user_id,
@@ -101,7 +101,6 @@ class UtilsController extends Controller
                     'horarios_disponibles' => $horariosGenerados,
                 ],
             ], 201);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -150,7 +149,6 @@ class UtilsController extends Controller
                     'horarios_disponibles' => $horariosGenerados,
                 ],
             ], 201);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -177,7 +175,7 @@ class UtilsController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $horarios->map(function($horario) {
+            'data' => $horarios->map(function ($horario) {
                 return [
                     'id' => $horario->id,
                     'tipo' => $horario->tipo,
@@ -205,6 +203,10 @@ class UtilsController extends Controller
      * 1. Horarios de fecha específica
      * 2. Horarios recurrentes
      */
+    /**
+     * Obtener citas disponibles para un médico en una fecha
+     * POST /api/utils/citas-disponibles
+     */
     public function citasDisponibles(Request $request): JsonResponse
     {
         $request->validate([
@@ -212,24 +214,21 @@ class UtilsController extends Controller
             'fecha' => 'required|date',
         ]);
 
-        $citas = $this->horarioService->getCitasDisponibles(
+        // El servicio ya devuelve SOLO las citas disponibles (array limpio)
+        $citasDisponibles = $this->horarioService->getCitasDisponibles(
             $request->medico_id,
             $request->fecha
         );
-
-        // Filtrar solo disponibles si se requiere
-        if ($request->input('solo_disponibles', false)) {
-            $citas = array_filter($citas, fn($cita) => $cita['disponible']);
-        }
 
         return response()->json([
             'success' => true,
             'data' => [
                 'fecha' => $request->fecha,
-                'total_horarios' => count($citas),
-                'disponibles' => count(array_filter($citas, fn($c) => $c['disponible'])),
-                'ocupados' => count(array_filter($citas, fn($c) => $c['ocupada'])),
-                'horarios' => $citas,
+                // Como ya están filtradas, el total es igual a las disponibles
+                'total_horarios' => count($citasDisponibles),
+                'disponibles' => count($citasDisponibles),
+                'ocupados' => 0, // El servicio ya eliminó las ocupadas
+                'horarios' => $citasDisponibles, // Esta es la lista que usa tu frontend
             ],
         ]);
     }

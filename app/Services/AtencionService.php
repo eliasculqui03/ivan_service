@@ -99,10 +99,15 @@ class AtencionService
      */
     public function getActiveByDate(string $fecha): Collection
     {
-        return Atenciones::with(['paciente', 'medico.especialidad']) // Traemos relaciones clave
+        // ✅ CORRECCIÓN: Agregamos 'medico.user' para traer el nombre
+        return Atenciones::with([
+            'paciente',
+            'medico.user',          // <--- ESTA LÍNEA ES LA CLAVE
+            'medico.especialidad'
+        ])
             ->whereDate('fecha_atencion', $fecha)
-            ->where('status', true) // Solo las activas (no eliminadas lógicamente)
-            ->orderBy('hora_ingreso', 'asc') // Ordenadas por hora de llegada
+            ->where('status', true)
+            ->orderBy('hora_ingreso', 'asc')
             ->get();
     }
 

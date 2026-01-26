@@ -248,22 +248,22 @@ Route::prefix('v1')->group(function () {
             // POST /api/consultas-externas/1/restore
             Route::post('/{id}/restore', [ConsultaExternaController::class, 'restore']);
         });
-    });
-    Route::prefix('utils')->middleware('auth:api')->group(function () {
-        // ==================== MÉDICOS ====================
-        Route::post('/medicos-por-especialidad', [UtilsController::class, 'medicosPorEspecialidad']);
-        // ==================== HORARIOS ====================
-        Route::post('/crear-horario-fecha', [UtilsController::class, 'crearHorarioFecha']);
-        Route::post('/crear-horario-recurrente', [UtilsController::class, 'crearHorarioRecurrente']);
-        Route::post('/horarios-medico', [UtilsController::class, 'horariosMedico']);
-        Route::post('/citas-disponibles', [UtilsController::class, 'citasDisponibles']);
-        // ==================== CATÁLOGOS ====================
-        Route::post('/tipos-atencion', [UtilsController::class, 'tiposAtencion']);
-        Route::post('/tipos-cobertura', [UtilsController::class, 'tiposCobertura']);
-        Route::post('/estados-atencion', [UtilsController::class, 'estadosAtencion']);
-        Route::post('/especialidades', [UtilsController::class, 'especialidades']);
-        // ==================== GENERADORES ====================
-        Route::post('/generar-numero-historia', [UtilsController::class, 'generarNumeroHistoria']);
-        Route::post('/generar-numero-atencion', [UtilsController::class, 'generarNumeroAtencion']);
+        Route::prefix('utils')->middleware('auth:api')->group(function () {
+            // ==================== MÉDICOS ====================
+            Route::post('/medicos-por-especialidad', [UtilsController::class, 'medicosPorEspecialidad']);
+            // ==================== HORARIOS ====================
+            Route::post('/crear-horario-fecha', [UtilsController::class, 'crearHorarioFecha']);
+            Route::post('/crear-horario-recurrente', [UtilsController::class, 'crearHorarioRecurrente']);
+            Route::post('/horarios-medico', [UtilsController::class, 'horariosMedico']);
+            Route::post('/citas-disponibles', [UtilsController::class, 'citasDisponibles']);
+            // ==================== CATÁLOGOS ====================
+            Route::post('/tipos-atencion', [UtilsController::class, 'tiposAtencion']);
+            Route::post('/tipos-cobertura', [UtilsController::class, 'tiposCobertura']);
+            Route::post('/estados-atencion', [UtilsController::class, 'estadosAtencion']);
+            Route::post('/especialidades', [UtilsController::class, 'especialidades']);
+            // ==================== GENERADORES ====================
+            Route::post('/generar-numero-historia', [UtilsController::class, 'generarNumeroHistoria']);
+            Route::post('/generar-numero-atencion', [UtilsController::class, 'generarNumeroAtencion']);
+        });
     });
 });

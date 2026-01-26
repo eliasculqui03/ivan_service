@@ -12,43 +12,40 @@ class Atenciones extends Model
 
     protected $table = 'atenciones';
 
-    // Definimos qué campos se pueden guardar en la base de datos
     protected $fillable = [
         'numero_atencion',
-        'numero_historia',  // Opcional, por si guardas copia del nro historia aquí
-        'paciente_id',      // LLAVE FORÁNEA (Crucial)
-        'medico_id',        // LLAVE FORÁNEA (Crucial)
-        'especialidad_id',  // Opcional, si filtras por especialidad
-        'tipo_atencion',    // Ej: 'Consulta', 'Emergencia'
-        'tipo_cobertura',   // Ej: 'SIS', 'Particular'
+        'numero_historia',
+        'paciente_id',
+        'medico_id',
+        'especialidad_id',
+        'tipo_atencion',
+        'tipo_cobertura',
         'fecha_atencion',
         'hora_ingreso',
+        'hora_salida',
         'motivo_consulta',
         'observaciones',
-        'estado',           // Ej: 'Pendiente', 'Atendida'
-        'status'            // Activo/Inactivo (boolean)
+        'estado',
+        'status'
     ];
 
-    // Convertimos datos automáticamente
     protected $casts = [
         'fecha_atencion' => 'date',
         'status' => 'boolean',
     ];
 
     // ==================== RELACIONES ====================
-    // Aquí es donde solucionamos tu error "Undefined relationship [paciente]"
 
     /**
-     * Relación: Una atención pertenece a un Paciente.
+     * Relación: Una atención pertenece a un Paciente
      */
     public function paciente()
     {
-        // belongsTo(Modelo, 'llave_foranea_local', 'id_del_otro_modelo')
         return $this->belongsTo(Pacientes::class, 'paciente_id');
     }
 
     /**
-     * Relación: Una atención pertenece a un Médico.
+     * Relación: Una atención pertenece a un Médico
      */
     public function medico()
     {
@@ -56,14 +53,23 @@ class Atenciones extends Model
     }
 
     /**
-     * (Opcional) Relación: Una atención pertenece a una Especialidad.
+     * Relación: Una atención pertenece a una Especialidad (opcional)
      */
     public function especialidad()
     {
         return $this->belongsTo(Especialidades::class, 'especialidad_id');
     }
 
-    // ==================== SCOPES (Filtros rápidos) ====================
+    /**
+     * ✅ CRÍTICO: Relación con Consulta Externa
+     * Una atención tiene UNA consulta externa (hasOne)
+     */
+    public function consultaExterna()
+    {
+        return $this->hasOne(ConsultaExterna::class, 'atencion_id');
+    }
+
+    // ==================== SCOPES ====================
 
     /**
      * Scope para filtrar solo atenciones activas
