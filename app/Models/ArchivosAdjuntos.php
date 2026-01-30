@@ -37,7 +37,7 @@ class ArchivosAdjuntos extends Model
         'es_confidencial' => 'boolean',
         'visible_paciente' => 'boolean',
     ];
-
+protected $appends = ['url', 'tamanio_formateado'];
     // ==================== RELACIONES ====================
 
     /**
@@ -128,9 +128,13 @@ class ArchivosAdjuntos extends Model
      */
     public function getUrlAttribute()
     {
-        return Storage::url($this->ruta_archivo);
-    }
+        // ❌ ANTES (Devolvía ruta relativa: /storage/...)
+        // return Storage::url($this->ruta_archivo);
 
+        // ✅ AHORA (Devuelve ruta absoluta: http://dominio/storage/...)
+        // Usamos 'asset' para que agregue el dominio actual configurado en .env
+        return asset(Storage::url($this->ruta_archivo));
+    }
     /**
      * Verificar si es una imagen
      */

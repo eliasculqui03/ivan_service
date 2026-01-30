@@ -12,15 +12,31 @@ class ConsultaExterna extends Model
 
     protected $table = 'consulta_externas';
 
+    // ⚠️ ESTA ES LA LISTA DE SEGURIDAD. SI FALTA AQUÍ, NO SE GUARDA.
     protected $fillable = [
+        // === IDENTIFICACIÓN ===
         'atencion_id',
-        // Datos de la consulta actual
+        // 'medico_id', // Lo quitamos para evitar el error de columna duplicada si no la creaste
+
+        // === DATOS SOCIALES (Snapshot) ===
         'cantidad_hijos',
         'ultimo_embarazo',
+        'ocupacion_actual',
         'telefono_consulta',
         'direccion_consulta',
-        'ocupacion_actual',
-        // Antecedentes Clínicos
+        'estado_civil',
+
+        // === MOTIVOS ESTÉTICOS (TEXTOS - LOS NUEVOS) ===
+        // Asegúrate que estos nombres sean IDÉNTICOS a los de tu Base de Datos
+        'motivos_zonas',
+        'motivos_tratamientos_previos',
+        'expectativa_paciente',
+        'motivo_facial',
+        'motivo_corporal',
+        'motivo_capilar', // Texto
+        'otros_motivos',
+
+        // === ANTECEDENTES (BOOLEANOS) ===
         'diabetes',
         'hipertension_arterial',
         'cancer',
@@ -28,7 +44,8 @@ class ConsultaExterna extends Model
         'otros_antecedentes',
         'tratamiento_actual',
         'intervenciones_quirurgicas',
-        // Enfermedades Infecciosas
+
+        // Infectocontagiosas
         'enfermedades_infectocontagiosas',
         'infecciones_urinarias',
         'infecciones_urinarias_detalle',
@@ -39,28 +56,32 @@ class ConsultaExterna extends Model
         'hepatitis_tipo',
         'hiv',
         'otros_enfermedades',
+
         // Alergias
         'medicamentos_alergia',
         'medicamentos_alergia_detalle',
         'alimentos_alergia',
         'alimentos_alergia_detalle',
         'otros_alergias',
-        // Fisiológicos
+
+        // Fisiológicos / Hábitos
         'fecha_ultima_regla',
         'regular',
         'irregular',
-        // Hábitos Nocivos
         'tabaco',
         'alcohol',
         'farmacos',
-        // Recomendado Por
+
+        // === MARKETING (Si tu tabla los tiene, déjalos. Si no, no estorban) ===
         'instagram_dr_ivan_pareja',
         'facebook_dr_ivan_pareja',
         'radio',
         'tv',
         'internet',
         'referencia_otro',
-        // Motivo de Consulta
+
+        // === MOTIVOS LEGACY (BOOLEANOS) ===
+        // Déjalos por si acaso tienes datos antiguos
         'marcas_manchas_4k',
         'flacidez',
         'rellenos_faciales_corporales',
@@ -76,222 +97,61 @@ class ConsultaExterna extends Model
         'liposuccion',
         'arrugas_alisox',
         'rejuvenecimiento_facial',
-        'capilar',
-        'otros_motivos',
-        // Campos adicionales
-        'examen_fisico',
-        'diagnostico',
-        'cie10',
-        'plan_tratamiento',
-        'indicaciones',
-        'observaciones',
-        'fecha_firma',
-        'ficha_completada',
-    ];
+        'capilar', // Boolean
 
-    protected $casts = [
-        'fecha_ultima_regla' => 'date',
-        'fecha_firma' => 'datetime',
-        'diabetes' => 'boolean',
-        'hipertension_arterial' => 'boolean',
-        'cancer' => 'boolean',
-        'artritis' => 'boolean',
-        'enfermedades_infectocontagiosas' => 'boolean',
-        'infecciones_urinarias' => 'boolean',
-        'pulmones' => 'boolean',
-        'infec_gastrointestinal' => 'boolean',
-        'enf_transmision_sexual' => 'boolean',
-        'hepatitis' => 'boolean',
-        'hiv' => 'boolean',
-        'medicamentos_alergia' => 'boolean',
-        'alimentos_alergia' => 'boolean',
-        'regular' => 'boolean',
-        'irregular' => 'boolean',
-        'tabaco' => 'boolean',
-        'alcohol' => 'boolean',
-        'farmacos' => 'boolean',
-        'instagram_dr_ivan_pareja' => 'boolean',
-        'facebook_dr_ivan_pareja' => 'boolean',
-        'radio' => 'boolean',
-        'tv' => 'boolean',
-        'internet' => 'boolean',
-        'marcas_manchas_4k' => 'boolean',
-        'flacidez' => 'boolean',
-        'rellenos_faciales_corporales' => 'boolean',
-        'aumento_labios' => 'boolean',
-        'aumento_senos' => 'boolean',
-        'ojeras' => 'boolean',
-        'ptosis_facial' => 'boolean',
-        'gluteos' => 'boolean',
-        'levantamiento_mama' => 'boolean',
-        'modelado_corporal' => 'boolean',
-        'proptoplastia' => 'boolean',
-        'lifting_facial' => 'boolean',
-        'liposuccion' => 'boolean',
-        'arrugas_alisox' => 'boolean',
-        'rejuvenecimiento_facial' => 'boolean',
-        'capilar' => 'boolean',
-        'ficha_completada' => 'boolean',
+        // === VITALES & EVALUACIÓN ===
+        'presion_arterial',
+        'frecuencia_cardiaca',
+        'peso',
+        'talla',
+        'imc',
+        'evaluacion_zona',
+
+        // === PLAN DE TRATAMIENTO ===
+        'procedimiento_propuesto',
+        'tecnica_utilizar',
+        'productos_usar',
+        'numero_sesiones',
+        'precio_estimado',
+        'proxima_cita',
+
+        // === INDICACIONES ===
+        'indicaciones_pre',
+        'indicaciones_post',
+
+        // === CONTROL ===
+        'ficha_completada',
+        'consentimiento_informado',
+        'consentimiento_fecha',
+        'consentimiento_archivo_id'
     ];
 
     // ==================== RELACIONES ====================
 
-    /**
-     * Una consulta externa pertenece a una atención
-     */
     public function atencion()
     {
-        return $this->belongsTo(Atenciones::class);
+        return $this->belongsTo(Atenciones::class, 'atencion_id');
     }
 
-    /**
-     * Archivos adjuntos de la consulta (relación polimórfica)
-     */
+    public function consentimientoArchivo()
+    {
+        return $this->belongsTo(ArchivosAdjuntos::class, 'consentimiento_archivo_id');
+    }
+
+    // ==================== MÉTODOS ====================
+
+    public function calcularIMC()
+    {
+        if ($this->peso && $this->talla && $this->talla > 0) {
+            $this->imc = round($this->peso / ($this->talla * $this->talla), 2);
+            $this->save();
+        }
+        return $this;
+    }
     public function archivos()
     {
+        // 1er argumento: El modelo de los archivos
+        // 2do argumento: El nombre del prefijo en la tabla archivos (adjuntable_type, adjuntable_id)
         return $this->morphMany(ArchivosAdjuntos::class, 'adjuntable');
-    }
-
-    // ==================== SCOPES ====================
-
-    /**
-     * Scope para consultas completadas
-     */
-    public function scopeCompletadas($query)
-    {
-        return $query->where('ficha_completada', true);
-    }
-
-    /**
-     * Scope para borradores
-     */
-    public function scopeBorradores($query)
-    {
-        return $query->where('ficha_completada', false);
-    }
-
-    // ==================== ACCESSORS ====================
-
-    /**
-     * Obtener lista de motivos de consulta seleccionados
-     */
-    public function getMotivosSeleccionadosAttribute()
-    {
-        $motivos = [];
-        
-        $camposMotivos = [
-            'marcas_manchas_4k' => 'Marcas/Manchas 4K',
-            'flacidez' => 'Flacidez',
-            'rellenos_faciales_corporales' => 'Rellenos faciales o corporales',
-            'aumento_labios' => 'Aumento de labios',
-            'aumento_senos' => 'Aumento de senos',
-            'ojeras' => 'Ojeras',
-            'ptosis_facial' => 'Ptosis Facial',
-            'gluteos' => 'Glúteos',
-            'levantamiento_mama' => 'Levantamiento de Mama',
-            'modelado_corporal' => 'Modelado Corporal',
-            'proptoplastia' => 'Proptoplastia',
-            'lifting_facial' => 'Lifting Facial',
-            'liposuccion' => 'Liposucción',
-            'arrugas_alisox' => 'Arrugas alisox',
-            'rejuvenecimiento_facial' => 'Rejuvenecimiento Facial',
-            'capilar' => 'Capilar',
-        ];
-
-        foreach ($camposMotivos as $campo => $nombre) {
-            if ($this->$campo) {
-                $motivos[] = $nombre;
-            }
-        }
-
-        if ($this->otros_motivos) {
-            $motivos[] = $this->otros_motivos;
-        }
-
-        return $motivos;
-    }
-
-    /**
-     * Obtener lista de antecedentes seleccionados
-     */
-    public function getAntecedentesSeleccionadosAttribute()
-    {
-        $antecedentes = [];
-        
-        if ($this->diabetes) $antecedentes[] = 'Diabetes';
-        if ($this->hipertension_arterial) $antecedentes[] = 'Hipertensión Arterial';
-        if ($this->cancer) $antecedentes[] = 'Cáncer';
-        if ($this->artritis) $antecedentes[] = 'Artritis';
-        
-        return $antecedentes;
-    }
-
-    /**
-     * Obtener canal de referencia
-     */
-    public function getCanalReferenciaAttribute()
-    {
-        if ($this->instagram_dr_ivan_pareja) return 'Instagram Dr Ivan Pareja';
-        if ($this->facebook_dr_ivan_pareja) return 'Facebook Dr Ivan Pareja';
-        if ($this->radio) return 'Radio';
-        if ($this->tv) return 'TV';
-        if ($this->internet) return 'Internet';
-        if ($this->referencia_otro) return $this->referencia_otro;
-        
-        return 'No especificado';
-    }
-
-    /**
-     * Verificar si tiene alergias
-     */
-    public function getTieneAlergiasAttribute()
-    {
-        return $this->medicamentos_alergia || $this->alimentos_alergia;
-    }
-
-    /**
-     * Verificar si tiene hábitos nocivos
-     */
-    public function getTieneHabitosNocivosAttribute()
-    {
-        return $this->tabaco || $this->alcohol || $this->farmacos;
-    }
-
-    // ==================== MÉTODOS AUXILIARES ====================
-
-    /**
-     * Marcar como completada y firmar
-     */
-    public function completarYFirmar()
-    {
-        $this->ficha_completada = true;
-        $this->fecha_firma = now();
-        $this->save();
-        return $this;
-    }
-
-    /**
-     * Guardar como borrador
-     */
-    public function guardarBorrador()
-    {
-        $this->ficha_completada = false;
-        $this->save();
-        return $this;
-    }
-
-    /**
-     * Obtener resumen de la consulta
-     */
-    public function obtenerResumen()
-    {
-        return [
-            'motivos' => $this->motivos_seleccionados,
-            'antecedentes' => $this->antecedentes_seleccionados,
-            'alergias' => $this->tiene_alergias,
-            'habitos_nocivos' => $this->tiene_habitos_nocivos,
-            'diagnostico' => $this->diagnostico,
-            'completada' => $this->ficha_completada,
-        ];
     }
 }

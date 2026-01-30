@@ -40,12 +40,12 @@ class ArchivoAdjuntoController extends Controller
     /**
      * Subir nuevo archivo
      */
-    public function store(StoreArchivoAdjuntoRequest $request)
+ public function store(StoreArchivoAdjuntoRequest $request)
     {
         try {
             $archivo = $this->archivoService->subirArchivo(
                 $request->validated(),
-                $request->file('archivo')
+                $request->file('file') // 👈 IMPORTANTE: Debe decir 'file'
             );
 
             return response()->json([
@@ -84,5 +84,35 @@ class ArchivoAdjuntoController extends Controller
         $this->archivoService->eliminar($archivo);
 
         return response()->json(['message' => 'Archivo eliminado correctamente']);
+    }
+    public function getGaleriaPaciente($pacienteId)
+    {
+        try {
+            // 1. Buscar IDs de todas las consultas externas de este paciente
+            // (Relación: ConsultaExterna -> pertenece a Atencion -> pertenece a Paciente)
+            $consultasIds = \App\Models\ConsultaExterna::whereHas('atencion', function ($q) use ($pacienteId) {
+                $q->where('paciente_id', $pacienteId);
+            })->pluck('id');
+
+            // 2. Traer archivos que sean de esas consultas O del paciente directo
+            $archivos = \App\Models\ArchivosAdjuntos::where(function ($query) use ($consultasIds) {
+                $query->where('adjuntable_type', 'ConsultaExterna') // Ajusta si guardas el namespace completo 'App\Models\ConsultaExterna'
+                    ->whereIn('adjuntable_id', $consultasIds);
+            })
+                ->orWhere(function ($query) use ($pacienteId) {
+                    $query->where('adjuntable_type', 'Paciente')
+                        ->where('adjuntable_id', $pacienteId);
+                })
+                ->with('uploader') // Cargar quién subió la foto
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json(['success' => true, 'data' => $archivos]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar galería: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

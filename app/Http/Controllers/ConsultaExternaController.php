@@ -5,10 +5,14 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreConsultaExternaRequest;
 use App\Http\Requests\UpdateConsultaExternaRequest;
 use App\Http\Resources\ConsultaExternaResource;
+use App\Models\Atenciones;
+use App\Models\ConsultaExterna;
 use App\Services\ConsultaExternaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 
 class ConsultaExternaController extends Controller
 {
@@ -46,23 +50,120 @@ class ConsultaExternaController extends Controller
      * Store a newly created resource in storage.
      * POST /api/consultas-externas
      */
-    public function store(StoreConsultaExternaRequest $request): JsonResponse
+    public function store(StoreConsultaExternaRequest $request)
     {
-        try {
-            $consulta = $this->consultaService->create($request->validated());
+        return DB::transaction(function () use ($request) {
+            try {
+                // 1. Obtenemos TODOS los datos validados
+                $allData = $request->validated();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Consulta externa creada exitosamente',
-                'data' => new ConsultaExternaResource($consulta),
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al crear la consulta externa',
-                'error' => $e->getMessage(),
-            ], 400);
-        }
+                // 2. Buscamos la Atención y el Paciente
+                $atencion = Atenciones::with('paciente')->findOrFail($allData['atencion_id']);
+
+                // 3. ACTUALIZAR PACIENTE (Sacamos los datos sociales del request)
+                if ($atencion->paciente) {
+                    $atencion->paciente->update([
+                        'cantidad_hijos'   => $allData['cantidad_hijos'] ?? $atencion->paciente->cantidad_hijos,
+                        'ultimo_embarazo'  => $allData['ultimo_embarazo'] ?? $atencion->paciente->ultimo_embarazo,
+                        'estado_civil'     => $allData['estado_civil'] ?? $atencion->paciente->estado_civil,
+                        'ocupacion'        => $allData['ocupacion_actual'] ?? $atencion->paciente->ocupacion,
+                        'direccion'        => $allData['direccion_consulta'] ?? $atencion->paciente->direccion,
+                        'celular'          => $allData['telefono_consulta'] ?? $atencion->paciente->celular,
+                    ]);
+                }
+
+                // 4. ACTUALIZAR MARKETING EN ATENCIÓN (Si viene el dato)
+                if (!empty($allData['medio_captacion'])) {
+                    $atencion->update([
+                        'medio_captacion' => $allData['medio_captacion']
+                    ]);
+                }
+
+                // 5. LIMPIAR DATOS PARA LA CONSULTA
+                // Quitamos los campos que NO existen en la tabla 'consulta_externas'
+                // para evitar el error "Column not found".
+                $consultaData = Arr::except($allData, [
+                    'cantidad_hijos',
+                    'ultimo_embarazo',
+                    'estado_civil',
+                    'ocupacion_actual',
+                    'direccion_consulta',
+                    'telefono_consulta',
+                    'medio_captacion' // Este va a Atenciones, no a Consultas
+                ]);
+
+          
+
+                $consulta = ConsultaExterna::create($consultaData);
+
+                // 7. ACTUALIZAR ESTADO DE LA ATENCIÓN
+                if ($atencion->estado === 'Programada' || $atencion->estado === 'En Espera') {
+                    $atencion->update(['estado' => 'En Atención']);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Consulta guardada correctamente',
+                    'data' => $consulta
+                ], 201);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al guardar: ' . $e->getMessage(),
+                    'trace' => $e->getTraceAsString() // Opcional para debug
+                ], 500);
+            }
+        });
+    }
+
+    /**
+     * Actualizar una consulta existente
+     */
+    public function update(StoreConsultaExternaRequest $request, $id)
+    {
+        return DB::transaction(function () use ($request, $id) {
+            try {
+                $consulta = ConsultaExterna::with('atencion.paciente')->findOrFail($id);
+                $allData = $request->validated();
+
+                // 1. ACTUALIZAR PACIENTE
+                if ($consulta->atencion && $consulta->atencion->paciente) {
+                    $consulta->atencion->paciente->update([
+                        'cantidad_hijos'   => $allData['cantidad_hijos'] ?? null,
+                        'ultimo_embarazo'  => $allData['ultimo_embarazo'] ?? null,
+                        'estado_civil'     => $allData['estado_civil'] ?? null,
+                        'ocupacion'        => $allData['ocupacion_actual'] ?? null,
+                        'direccion'        => $allData['direccion_consulta'] ?? null,
+                        'celular'          => $allData['telefono_consulta'] ?? null,
+                    ]);
+                }
+
+                // 2. FILTRAR DATOS PARA LA CONSULTA
+                $consultaData = Arr::except($allData, [
+                    'cantidad_hijos',
+                    'ultimo_embarazo',
+                    'estado_civil',
+                    'ocupacion_actual',
+                    'direccion_consulta',
+                    'telefono_consulta',
+                    'medio_captacion'
+                ]);
+
+                // 3. ACTUALIZAR CONSULTA
+                $consulta->update($consultaData);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Consulta actualizada exitosamente',
+                    'data' => $consulta
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al actualizar: ' . $e->getMessage()
+                ], 500);
+            }
+        });
     }
 
     /**
@@ -90,28 +191,7 @@ class ConsultaExternaController extends Controller
      * Update the specified resource in storage.
      * PUT/PATCH /api/consultas-externas/{id}
      */
-    public function update(UpdateConsultaExternaRequest $request, int $id): JsonResponse
-    {
-        try {
-            $consulta = $this->consultaService->update($id, $request->validated());
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Consulta externa actualizada exitosamente',
-                'data' => new ConsultaExternaResource($consulta),
-            ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Consulta externa no encontrada',
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 400);
-        }
-    }
 
     /**
      * Remove the specified resource from storage.

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ArchivoAdjuntoController;
 use App\Http\Controllers\AtencionController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CirugiaController;
@@ -203,49 +204,54 @@ Route::prefix('v1')->group(function () {
             Route::patch('/{id}/toggle-activo', [HorarioMedicosController::class, 'toggleActivo']);
         });
 
+
         Route::prefix('consultas-externas')->group(function () {
-            // Listar todas las consultas externas (paginado)
-            // GET /api/consultas-externas?medico_id=1&paciente_id=1&ficha_completada=1
+            // GET /api/v1/consultas-externas/stats/general
+            Route::get('/stats/general', [ConsultaExternaController::class, 'estadisticas']);
+            // GET /api/v1/consultas-externas/search/diagnostico?q=liposuccion
+            Route::get('/search/diagnostico', [ConsultaExternaController::class, 'buscarDiagnostico']);
+            // Consultas eliminadas
+            // GET /api/v1/consultas-externas/trashed/list
+            Route::get('/trashed/list', [ConsultaExternaController::class, 'trashed']);
+            // Obtener consulta por atención (CRÍTICO - usado en frontend)
+            // GET /api/v1/consultas-externas/atencion/107
+            Route::get('/atencion/{atencionId}', [ConsultaExternaController::class, 'getByAtencion']);
+            // Historial completo de un paciente
+            // GET /api/v1/consultas-externas/paciente/63/historial
+            Route::get('/paciente/{pacienteId}/historial', [ConsultaExternaController::class, 'historial']);
+            // Listar todas (paginado con filtros)
+            // GET /api/v1/consultas-externas?page=1&medico_id=21&ficha_completada=1
             Route::get('/', [ConsultaExternaController::class, 'index']);
-            // Crear nueva consulta externa
-            // POST /api/consultas-externas
+            // Crear nueva consulta
+            // POST /api/v1/consultas-externas
             Route::post('/', [ConsultaExternaController::class, 'store']);
-            // Ver una consulta externa específica
-            // GET /api/consultas-externas/1
+            // Ver una consulta específica
+            // GET /api/v1/consultas-externas/1
             Route::get('/{id}', [ConsultaExternaController::class, 'show']);
-            // Actualizar consulta externa
-            // PUT/PATCH /api/consultas-externas/1
+            // Actualizar consulta
+            // PUT/PATCH /api/v1/consultas-externas/1
             Route::put('/{id}', [ConsultaExternaController::class, 'update']);
             Route::patch('/{id}', [ConsultaExternaController::class, 'update']);
-            // Eliminar consulta externa (soft delete)
-            // DELETE /api/consultas-externas/1
+            // Eliminar (soft delete)
+            // DELETE /api/v1/consultas-externas/1
             Route::delete('/{id}', [ConsultaExternaController::class, 'destroy']);
-            // Obtener consulta por atención
-            // GET /api/consultas-externas/atencion/1
-            Route::get('/atencion/{atencionId}', [ConsultaExternaController::class, 'getByAtencion']);
             // Completar y firmar consulta
-            // POST /api/consultas-externas/1/completar
+            // POST /api/v1/consultas-externas/1/completar
             Route::post('/{id}/completar', [ConsultaExternaController::class, 'completar']);
             // Guardar como borrador
-            // POST /api/consultas-externas/1/borrador
+            // POST /api/v1/consultas-externas/1/borrador
             Route::post('/{id}/borrador', [ConsultaExternaController::class, 'borrador']);
+            // Registrar firma de consentimiento
+            // POST /api/v1/consultas-externas/1/firmar-consentimiento
+            Route::post('/{id}/firmar-consentimiento', [ConsultaExternaController::class, 'firmarConsentimiento']);
+            // Calcular IMC automáticamente
+            // POST /api/v1/consultas-externas/1/calcular-imc
+            Route::post('/{id}/calcular-imc', [ConsultaExternaController::class, 'calcularIMC']);
             // Obtener resumen
-            // GET /api/consultas-externas/1/resumen
+            // GET /api/v1/consultas-externas/1/resumen
             Route::get('/{id}/resumen', [ConsultaExternaController::class, 'resumen']);
-            // Obtener estadísticas
-            // GET /api/consultas-externas/stats/general
-            Route::get('/stats/general', [ConsultaExternaController::class, 'estadisticas']);
-            // Historial de paciente
-            // GET /api/consultas-externas/paciente/1/historial
-            Route::get('/paciente/{pacienteId}/historial', [ConsultaExternaController::class, 'historial']);
-            // Buscar por diagnóstico
-            // GET /api/consultas-externas/search/diagnostico?q=diabetes
-            Route::get('/search/diagnostico', [ConsultaExternaController::class, 'buscarDiagnostico']);
-            // Obtener eliminadas
-            // GET /api/consultas-externas/trashed/list
-            Route::get('/trashed/list', [ConsultaExternaController::class, 'trashed']);
             // Restaurar eliminada
-            // POST /api/consultas-externas/1/restore
+            // POST /api/v1/consultas-externas/1/restore
             Route::post('/{id}/restore', [ConsultaExternaController::class, 'restore']);
         });
         Route::prefix('utils')->middleware('auth:api')->group(function () {
@@ -265,5 +271,12 @@ Route::prefix('v1')->group(function () {
             Route::post('/generar-numero-historia', [UtilsController::class, 'generarNumeroHistoria']);
             Route::post('/generar-numero-atencion', [UtilsController::class, 'generarNumeroAtencion']);
         });
+        Route::prefix('archivos')->middleware('auth:api')->group(function () {
+            Route::get('/', [ArchivoAdjuntoController::class, 'index']); // Listar específicos
+            Route::post('/upload', [ArchivoAdjuntoController::class, 'store']); // Subir
+            Route::delete('/{id}', [ArchivoAdjuntoController::class, 'destroy']); // Eliminar
+           
+        });
+        Route::get('/pacientes/{id}/galeria', [ArchivoAdjuntoController::class, 'getGaleriaPaciente']);
     });
 });

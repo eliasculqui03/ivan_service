@@ -11,22 +11,30 @@ class Atenciones extends Model
     use HasFactory, SoftDeletes;
 
     protected $table = 'atenciones';
-
     protected $fillable = [
         'numero_atencion',
-        'numero_historia',
+        'numero_historia', // (Opcional, si lo guardas redundante)
+
+        // Relaciones
         'paciente_id',
         'medico_id',
         'especialidad_id',
+
+        // Detalles de la Cita
         'tipo_atencion',
         'tipo_cobertura',
         'fecha_atencion',
         'hora_ingreso',
         'hora_salida',
-        'motivo_consulta',
+        'estado',          // Programada, En Atención, Atendida...
+        'status',
+
+        // Datos Médicos/Administrativos de esta cita
+        'motivo_consulta', // Queja principal breve
         'observaciones',
-        'estado',
-        'status'
+
+        // Marketing (NUEVO)
+        'medio_captacion'  // ✅ Facebook, Instagram, Recomendación...
     ];
 
     protected $casts = [

@@ -8,20 +8,29 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Pacientes extends Model
 {
-   use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'pacientes';
-
     protected $fillable = [
+        // Identificación
         'numero_historia',
+        'documento_identidad',
+        'tipo_documento',
+        // Datos Personales
         'nombres',
         'apellido_paterno',
         'apellido_materno',
-        'documento_identidad',
-        'tipo_documento',
         'fecha_nacimiento',
         'genero',
         'grupo_sanguineo',
+        'lugar_nacimiento',
+        'foto_url',
+        // Datos Sociales (NUEVOS - Migrados desde Consulta)
+        'ocupacion',
+        'estado_civil',      // ✅ Soltero, Casado, etc.
+        'cantidad_hijos',    // ✅ Número de hijos
+        'ultimo_embarazo',   // ✅ Año o fecha (Solo mujeres)
+        // Contacto
         'telefono',
         'celular',
         'telefono_domicilio',
@@ -32,26 +41,23 @@ class Pacientes extends Model
         'distrito',
         'provincia',
         'departamento',
-        'lugar_nacimiento',
-        'ocupacion',
-        'estado_civil',      // <--- NUEVO
-        'cantidad_hijos',    // <--- NUEVO
-        'ultimo_embarazo',   // <--- NUEVO
+        // Emergencia y Seguro
         'contacto_emergencia_nombre',
         'contacto_emergencia_telefono',
         'contacto_emergencia_parentesco',
         'tipo_seguro',
         'numero_seguro',
+        // Antecedentes (Resumen en Perfil)
         'alergias',
         'antecedentes_personales',
         'antecedentes_familiares',
-        'foto_url',
         'status',
     ];
 
     protected $casts = [
         'fecha_nacimiento' => 'date',
         'status' => 'boolean',
+        'cantidad_hijos' => 'integer' // Casteo útil para evitar strings
     ];
 
     // ==================== RELACIONES ====================
@@ -103,10 +109,10 @@ class Pacientes extends Model
      */
     public function scopeBuscarPorNombre($query, $nombre)
     {
-        return $query->where(function($q) use ($nombre) {
+        return $query->where(function ($q) use ($nombre) {
             $q->where('nombres', 'like', "%{$nombre}%")
-              ->orWhere('apellido_paterno', 'like', "%{$nombre}%")
-              ->orWhere('apellido_materno', 'like', "%{$nombre}%");
+                ->orWhere('apellido_paterno', 'like', "%{$nombre}%")
+                ->orWhere('apellido_materno', 'like', "%{$nombre}%");
         });
     }
 

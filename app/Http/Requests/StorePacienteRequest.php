@@ -42,7 +42,8 @@ class StorePacienteRequest extends FormRequest
 
             // Información adicional
             'ocupacion' => ['nullable', 'string', 'max:100'],
-
+            'estado_civil' => ['nullable', 'string', 'max:100'],
+            'cantidad_hijos' => ['nullable', 'integer', 'min:0', 'max:20'],
             // Contacto de emergencia
             'contacto_emergencia_nombre' => ['nullable', 'string', 'max:100'],
             'contacto_emergencia_telefono' => ['nullable', 'string', 'max:20'],
