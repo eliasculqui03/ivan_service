@@ -250,6 +250,8 @@ Route::prefix('v1')->group(function () {
             // Obtener resumen
             // GET /api/v1/consultas-externas/1/resumen
             Route::get('/{id}/resumen', [ConsultaExternaController::class, 'resumen']);
+            // ULTIMA CONSUTLA   
+            Route::get('/paciente/{pacienteId}/ultima', [ConsultaExternaController::class, 'ultimaConsulta']);
             // Restaurar eliminada
             // POST /api/v1/consultas-externas/1/restore
             Route::post('/{id}/restore', [ConsultaExternaController::class, 'restore']);
@@ -275,7 +277,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [ArchivoAdjuntoController::class, 'index']); // Listar específicos
             Route::post('/upload', [ArchivoAdjuntoController::class, 'store']); // Subir
             Route::delete('/{id}', [ArchivoAdjuntoController::class, 'destroy']); // Eliminar
-           
+
         });
         Route::get('/pacientes/{id}/galeria', [ArchivoAdjuntoController::class, 'getGaleriaPaciente']);
     });

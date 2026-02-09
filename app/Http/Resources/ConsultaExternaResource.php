@@ -13,7 +13,7 @@ class ConsultaExternaResource extends JsonResource
             'id' => $this->id,
             'atencion_id' => $this->atencion_id,
             'medico_id' => $this->medico_id, // Si lo agregaste
-            
+
             // ==================== INFORMACIÓN DE LA ATENCIÓN ====================
             'atencion' => $this->when(
                 $this->relationLoaded('atencion'),
@@ -24,7 +24,7 @@ class ConsultaExternaResource extends JsonResource
                     'tipo_atencion' => $this->atencion->tipo_atencion,
                     'estado' => $this->atencion->estado,
                     'medio_captacion' => $this->atencion->medio_captacion, // ✅ Marketing
-                    
+
                     'paciente' => $this->when(
                         $this->atencion->relationLoaded('paciente'),
                         fn() => [
@@ -46,7 +46,7 @@ class ConsultaExternaResource extends JsonResource
                     ),
                 ]
             ),
-            
+
             // ==================== DATOS SOCIALES (Snapshot en consulta) ====================
             // Estos campos existen en la tabla consulta por si queremos guardar una foto del momento,
             // aunque el frontend prioriza los del paciente.

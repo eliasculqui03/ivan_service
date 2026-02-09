@@ -92,7 +92,7 @@ class ConsultaExternaController extends Controller
                     'medio_captacion' // Este va a Atenciones, no a Consultas
                 ]);
 
-          
+
 
                 $consulta = ConsultaExterna::create($consultaData);
 
@@ -297,11 +297,14 @@ class ConsultaExternaController extends Controller
      * Obtener historial de un paciente
      * GET /api/consultas-externas/paciente/{pacienteId}/historial
      */
-    public function historial(int $pacienteId): AnonymousResourceCollection
+    public function historial(int $pacienteId): JsonResponse
     {
         $consultas = $this->consultaService->getHistorialPaciente($pacienteId);
 
-        return ConsultaExternaResource::collection($consultas);
+        return response()->json([
+            'success' => true,
+            'data' => ConsultaExternaResource::collection($consultas)
+        ]);
     }
 
     /**
@@ -374,5 +377,34 @@ class ConsultaExternaController extends Controller
         $consultas = $this->consultaService->getTrashed();
 
         return ConsultaExternaResource::collection($consultas);
+    }
+    // En ConsultaExternaController.php
+
+    public function ultimaConsulta($pacienteId)
+    {
+        try {
+            $consulta = ConsultaExterna::whereHas('atencion', function ($query) use ($pacienteId) {
+                $query->where('paciente_id', $pacienteId);
+            })
+                ->latest() // Ordena por created_at descendente
+                ->first();
+
+            if (!$consulta) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron consultas previas para este paciente.'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $consulta
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener la última consulta: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

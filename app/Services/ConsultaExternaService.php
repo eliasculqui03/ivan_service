@@ -29,27 +29,27 @@ class ConsultaExternaService
 
         // Filtro por médico
         if (isset($filters['medico_id']) && !empty($filters['medico_id'])) {
-            $query->whereHas('atencion', function($q) use ($filters) {
+            $query->whereHas('atencion', function ($q) use ($filters) {
                 $q->where('medico_id', $filters['medico_id']);
             });
         }
 
         // Filtro por paciente
         if (isset($filters['paciente_id']) && !empty($filters['paciente_id'])) {
-            $query->whereHas('atencion', function($q) use ($filters) {
+            $query->whereHas('atencion', function ($q) use ($filters) {
                 $q->where('paciente_id', $filters['paciente_id']);
             });
         }
 
         // Filtro por rango de fechas
         if (isset($filters['fecha_desde']) && !empty($filters['fecha_desde'])) {
-            $query->whereHas('atencion', function($q) use ($filters) {
+            $query->whereHas('atencion', function ($q) use ($filters) {
                 $q->whereDate('fecha_atencion', '>=', $filters['fecha_desde']);
             });
         }
 
         if (isset($filters['fecha_hasta']) && !empty($filters['fecha_hasta'])) {
-            $query->whereHas('atencion', function($q) use ($filters) {
+            $query->whereHas('atencion', function ($q) use ($filters) {
                 $q->whereDate('fecha_atencion', '<=', $filters['fecha_hasta']);
             });
         }
@@ -57,13 +57,13 @@ class ConsultaExternaService
         // Búsqueda por diagnóstico
         if (isset($filters['search']) && !empty($filters['search'])) {
             $search = $filters['search'];
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('diagnostico', 'like', "%{$search}%")
-                  ->orWhere('cie10', 'like', "%{$search}%")
-                  ->orWhereHas('atencion.paciente', function($q) use ($search) {
-                      $q->where('nombres', 'like', "%{$search}%")
-                        ->orWhere('apellido_paterno', 'like', "%{$search}%");
-                  });
+                    ->orWhere('cie10', 'like', "%{$search}%")
+                    ->orWhereHas('atencion.paciente', function ($q) use ($search) {
+                        $q->where('nombres', 'like', "%{$search}%")
+                            ->orWhere('apellido_paterno', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -117,11 +117,11 @@ class ConsultaExternaService
     public function create(array $data): ConsultaExterna
     {
         DB::beginTransaction();
-        
+
         try {
             // Verificar que la atención existe y no tiene consulta
             $atencion = Atenciones::findOrFail($data['atencion_id']);
-            
+
             if ($atencion->consultaExterna()->exists()) {
                 throw new \Exception("Esta atención ya tiene una consulta externa registrada.");
             }
@@ -140,7 +140,7 @@ class ConsultaExternaService
             }
 
             DB::commit();
-            
+
             Log::info('Consulta externa creada', [
                 'id' => $consulta->id,
                 'atencion_id' => $consulta->atencion_id,
@@ -152,7 +152,6 @@ class ConsultaExternaService
                 'atencion.medico.user',
                 'archivos'
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al crear consulta externa', [
@@ -174,7 +173,7 @@ class ConsultaExternaService
     public function update(int $id, array $data): ConsultaExterna
     {
         DB::beginTransaction();
-        
+
         try {
             $consulta = $this->getById($id);
 
@@ -191,7 +190,7 @@ class ConsultaExternaService
             }
 
             DB::commit();
-            
+
             Log::info('Consulta externa actualizada', [
                 'id' => $consulta->id,
                 'atencion_id' => $consulta->atencion_id,
@@ -202,7 +201,6 @@ class ConsultaExternaService
                 'atencion.medico.user',
                 'archivos'
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al actualizar consulta externa', [
@@ -223,7 +221,7 @@ class ConsultaExternaService
     public function delete(int $id): bool
     {
         DB::beginTransaction();
-        
+
         try {
             $consulta = $this->getById($id);
 
@@ -235,14 +233,13 @@ class ConsultaExternaService
             $consulta->delete();
 
             DB::commit();
-            
+
             Log::info('Consulta externa eliminada', [
                 'id' => $consulta->id,
                 'atencion_id' => $consulta->atencion_id,
             ]);
 
             return true;
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al eliminar consulta externa', [
@@ -266,7 +263,7 @@ class ConsultaExternaService
         try {
             $consulta = $this->getById($id);
             $consulta->completarYFirmar();
-            
+
             // Marcar atención como atendida
             $consulta->atencion->update(['estado' => 'Atendida']);
 
@@ -281,7 +278,6 @@ class ConsultaExternaService
                 'atencion.paciente',
                 'atencion.medico.user'
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -319,7 +315,7 @@ class ConsultaExternaService
             'borradores' => ConsultaExterna::where('ficha_completada', false)->count(),
             'con_archivos' => ConsultaExterna::has('archivos')->count(),
             'por_medico' => $this->getConsultasPorMedico(),
-            'motivos_frecuentes' => $this->getMotivosFrecuentes(),
+            // 'motivos_frecuentes' => $this->getMotivosFrecuentes(),
         ];
     }
 
@@ -331,11 +327,11 @@ class ConsultaExternaService
     private function getConsultasPorMedico(): array
     {
         return ConsultaExterna::select('atenciones.medico_id', DB::raw('count(*) as total'))
-            ->join('atenciones', 'consultas_externas.atencion_id', '=', 'atenciones.id')
+            ->join('atenciones', 'consulta_externas.atencion_id', '=', 'atenciones.id')
             ->with('atencion.medico.user')
             ->groupBy('atenciones.medico_id')
             ->get()
-            ->map(function($item) {
+            ->map(function ($item) {
                 return [
                     'medico' => $item->atencion->medico->nombre_completo ?? 'Sin médico',
                     'total' => $item->total,
@@ -371,7 +367,7 @@ class ConsultaExternaService
         }
 
         // Ordenar por total descendente
-        usort($resultados, function($a, $b) {
+        usort($resultados, function ($a, $b) {
             return $b['total'] <=> $a['total'];
         });
 
@@ -386,12 +382,12 @@ class ConsultaExternaService
      */
     public function getHistorialPaciente(int $pacienteId): Collection
     {
-        return ConsultaExterna::whereHas('atencion', function($q) use ($pacienteId) {
+        return ConsultaExterna::whereHas('atencion', function ($q) use ($pacienteId) {
             $q->where('paciente_id', $pacienteId);
         })
-        ->with(['atencion.medico.user', 'atencion.medico.especialidad'])
-        ->orderBy('created_at', 'desc')
-        ->get();
+            ->with(['atencion.medico.user', 'atencion.medico.especialidad'])
+            ->orderBy('created_at', 'desc')
+            ->get();
     }
 
     /**
