@@ -19,7 +19,7 @@ class StoreAtencionRequest extends FormRequest
 
             'numero_atencion' => ['nullable', 'string', 'max:50', 'unique:atenciones,numero_atencion'],
             'fecha_atencion' => ['required', 'date'],
-            'hora_ingreso' => ['required', 'date_format:H:i'],
+            'hora_ingreso' => ['nullable', 'date_format:H:i'],
             'hora_salida' => ['nullable', 'date_format:H:i', 'after:hora_ingreso'],
 
             'tipo_atencion' => [
@@ -41,7 +41,7 @@ class StoreAtencionRequest extends FormRequest
             'medio_captacion' => ['nullable', 'string'],
 
             'monto_total' => ['nullable', 'numeric', 'min:0'],
-          
+
 
             'status' => ['nullable', 'boolean'],
         ];
