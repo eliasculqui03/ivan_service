@@ -7,7 +7,7 @@ use App\Http\Requests\UpdatePacienteRequest;
 use App\Services\PacienteService;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
-
+use Illuminate\Support\Facades\Http;
 class PacienteController extends Controller
 {
     protected PacienteService $pacienteService;
@@ -345,4 +345,42 @@ class PacienteController extends Controller
             ], 404);
         }
     }
+    public function consultarDniExterno(Request $request)
+{
+    $dni = $request->input('documento');
+
+    if (strlen($dni) !== 8) {
+        return response()->json(['success' => false, 'message' => 'DNI inválido'], 400);
+    }
+
+    try {
+        $token = env('DECOLECTA_TOKEN');
+        
+        // Hacemos la petición a Decolecta desde el servidor
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+            'Accept' => 'application/json',
+        ])->get("https://api.decolecta.com/v1/reniec/dni", [
+            'numero' => $dni
+        ]);
+
+        if ($response->successful()) {
+            return response()->json([
+                'success' => true,
+                'data' => $response->json()
+            ]);
+        }
+
+        return response()->json([
+            'success' => false, 
+            'message' => 'No se encontraron datos en RENIEC'
+        ], $response->status());
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false, 
+            'message' => 'Error de conexión con el servicio externo'
+        ], 500);
+    }
+}
 }

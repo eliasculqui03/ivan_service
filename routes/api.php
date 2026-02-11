@@ -280,5 +280,6 @@ Route::prefix('v1')->group(function () {
 
         });
         Route::get('/pacientes/{id}/galeria', [ArchivoAdjuntoController::class, 'getGaleriaPaciente']);
+        Route::post('/pacientes/consulta-dni-externo', [PacienteController::class, 'consultarDniExterno']);
     });
 });
