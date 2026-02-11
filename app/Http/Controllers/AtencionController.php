@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreAtencionRequest;
 use App\Http\Requests\UpdateAtencionRequest;
+use App\Models\Atenciones;
 use App\Services\AtencionService;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -61,27 +62,38 @@ class AtencionController extends Controller
             'data' => $atenciones,
         ]);
     }
-    public function porFecha(Request $request): JsonResponse
+    // App\Http\Controllers\AtencionController.php
+
+    public function porFecha(Request $request)
     {
-        $request->validate([
-            'fecha' => 'required|date',
-        ]);
+        $fecha = $request->input('fecha');
+        $search = $request->input('search');
 
-        try {
-            $atenciones = $this->atencionService->getActiveByDate($request->input('fecha'));
+        $query = Atenciones::with(['paciente', 'medico.user', 'medico.especialidad']);
 
-            return response()->json([
-                'success' => true,
-                'count' => $atenciones->count(),
-                'data' => $atenciones,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener atenciones',
-                'error' => $e->getMessage()
-            ], 500);
+        if (!empty($search)) {
+            // Si hay búsqueda, priorizamos encontrar al paciente por DNI o Nombre
+            // eliminando la restricción estricta de "solo hoy"
+            $query->whereHas('paciente', function ($q) use ($search) {
+                $q->where('documento_identidad', $search)
+                    ->orWhere('nombres', 'like', "%{$search}%")
+                    ->orWhere('apellido_paterno', 'like', "%{$search}%");
+            });
+        } else {
+            // Si no hay búsqueda, solo mostramos lo del día seleccionado
+            $query->whereDate('fecha_atencion', $fecha);
         }
+
+        // Solo traer estados relevantes para la atención médica
+        $atenciones = $query->whereIn('estado', ['Programada', 'En Espera', 'En Atención'])
+            ->orderBy('fecha_atencion', 'desc')
+            ->orderBy('hora_ingreso', 'asc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $atenciones
+        ]);
     }
 
     /**

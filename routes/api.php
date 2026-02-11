@@ -36,7 +36,7 @@ Route::prefix('v1')->group(function () {
         // Users
         Route::prefix('users')->group(function () {
             Route::get('/', [UsersController::class, 'index']);
-            Route::post('/', [UsersController::class, 'store']);
+            Route::post('/create', [UsersController::class, 'store']);
             Route::get('/stats/general', [UsersController::class, 'estadisticas']);
             Route::get('/{id}', [UsersController::class, 'show']);
             Route::put('/{id}', [UsersController::class, 'update']);

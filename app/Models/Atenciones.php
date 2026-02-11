@@ -32,6 +32,7 @@ class Atenciones extends Model
         // Datos Médicos/Administrativos de esta cita
         'motivo_consulta', // Queja principal breve
         'observaciones',
+        'monto',
 
         // Marketing (NUEVO)
         'medio_captacion'  // ✅ Facebook, Instagram, Recomendación...
@@ -40,6 +41,7 @@ class Atenciones extends Model
     protected $casts = [
         'fecha_atencion' => 'date',
         'status' => 'boolean',
+        'monto' => 'decimal:2',
     ];
 
     // ==================== RELACIONES ====================

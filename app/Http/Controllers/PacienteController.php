@@ -109,32 +109,29 @@ class PacienteController extends Controller
      * Update the specified resource in storage.
      * POST /api/pacientes/update
      */
-    public function update(UpdatePacienteRequest $request): JsonResponse
-    {
-        try {
-            $paciente = $this->pacienteService->update(
-                $request->input('id'),
-                $request->validated()
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Paciente actualizado exitosamente',
-                'data' => $paciente,
-            ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Paciente no encontrado',
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar el paciente',
-                'error' => $e->getMessage(),
-            ], 400);
-        }
+  public function update(UpdatePacienteRequest $request): JsonResponse
+{
+    // Obtener el ID desde el body del request
+    $id = $request->input('id'); 
+    
+    if (!$id) {
+        return response()->json(['success' => false, 'message' => 'ID no proporcionado'], 400);
     }
+
+    try {
+        $paciente = $this->pacienteService->update($id, $request->validated());
+        return response()->json([
+            'success' => true,
+            'data' => $paciente,
+            'message' => 'Paciente actualizado correctamente'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
     /**
      * Remove the specified resource from storage.
