@@ -55,6 +55,8 @@ class UpdateAtencionRequest extends FormRequest
             'monto_total' => ['nullable', 'numeric', 'min:0'],
             'monto_cobertura' => ['nullable', 'numeric', 'min:0'],
             'monto_copago' => ['nullable', 'numeric', 'min:0'],
+            'medio_captacion'=>['nullable', 'string'],
+            'monto'=>['nullable', 'numeric', 'min:0'],
 
             'status' => ['nullable', 'boolean'],
         ];

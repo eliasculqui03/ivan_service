@@ -38,11 +38,10 @@ class StoreAtencionRequest extends FormRequest
             ],
 
             'motivo_consulta' => ['nullable', 'string'],
-            'observaciones' => ['nullable', 'string'],
+            'medio_captacion' => ['nullable', 'string'],
 
             'monto_total' => ['nullable', 'numeric', 'min:0'],
-            'monto_cobertura' => ['nullable', 'numeric', 'min:0'],
-            'monto_copago' => ['nullable', 'numeric', 'min:0'],
+          
 
             'status' => ['nullable', 'boolean'],
         ];
@@ -106,8 +105,8 @@ class StoreAtencionRequest extends FormRequest
             $this->merge(['monto_cobertura' => 0]);
         }
 
-        if (!$this->has('monto_copago')) {
-            $this->merge(['monto_copago' => 0]);
+        if (!$this->has('monto')) {
+            $this->merge(['monto' => 0]);
         }
     }
 }
