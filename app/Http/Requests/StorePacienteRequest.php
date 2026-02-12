@@ -29,6 +29,7 @@ class StorePacienteRequest extends FormRequest
 
             // Contacto
             'telefono' => ['nullable', 'string', 'max:20'],
+            'medio_captacion'=> ['nullable', 'string', 'max:255'],
             'celular' => ['nullable', 'string', 'max:20'],
             'telefono_domicilio' => ['nullable', 'string', 'max:20'],
             'telefono_oficina' => ['nullable', 'string', 'max:20'],

@@ -51,7 +51,7 @@ class Pacientes extends Model
         'alergias',
         'antecedentes_personales',
         'antecedentes_familiares',
-        
+        'medio_captacion',
         'status',
     ];
 

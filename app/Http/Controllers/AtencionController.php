@@ -298,7 +298,14 @@ class AtencionController extends Controller
         $term = $request->input('q');
         $limit = $request->input('limit', 10);
 
+        // 1. Obtienes los resultados del service
         $atenciones = $this->atencionService->search($term, $limit);
+
+        // 2. ✅ CARGA FORZADA DE RELACIONES
+        // Esto asegura que cada atención traiga su paciente y el usuario del médico
+        if ($atenciones instanceof \Illuminate\Support\Collection) {
+            $atenciones->load(['paciente', 'medico.user', 'medico.especialidad']);
+        }
 
         return response()->json([
             'success' => true,

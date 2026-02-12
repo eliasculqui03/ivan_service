@@ -58,6 +58,7 @@ class UpdatePacienteRequest extends FormRequest
 
             // Información adicional
             'ocupacion' => ['nullable', 'string', 'max:100'],
+            'medio_captacion' => ['nullable', 'string', 'max:255'],
 
             // Contacto de emergencia
             'contacto_emergencia_nombre' => ['nullable', 'string', 'max:100'],

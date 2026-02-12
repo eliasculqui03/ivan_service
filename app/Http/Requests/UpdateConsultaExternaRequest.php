@@ -29,6 +29,7 @@ class UpdateConsultaExternaRequest extends FormRequest
             'direccion_consulta' => 'nullable|string|max:500',
             'ocupacion_actual' => 'nullable|string|max:100',
             
+            
             // Todos los campos boolean
             'diabetes' => 'nullable|boolean',
             'hipertension_arterial' => 'nullable|boolean',
@@ -96,6 +97,7 @@ class UpdateConsultaExternaRequest extends FormRequest
             'plan_tratamiento' => 'nullable|string|max:5000',
             'indicaciones' => 'nullable|string|max:5000',
             'observaciones' => 'nullable|string|max:2000',
+            
             
             'ficha_completada' => 'nullable|boolean',
             'force_update' => 'nullable|boolean', // Para forzar actualización de ficha completada
