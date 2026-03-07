@@ -20,7 +20,7 @@ class StorePacienteRequest extends FormRequest
             'apellido_materno' => ['nullable', 'string', 'max:100'],
             'documento_identidad' => ['required', 'string', 'max:20', 'unique:pacientes,documento_identidad'],
             'tipo_documento' => ['required', 'in:DNI,CE,Pasaporte,Otro'],
-            'fecha_nacimiento' => ['required', 'date', 'before:today'],
+            'fecha_nacimiento' => ['nullable', 'date', 'before:today'],
             'genero' => ['required', 'in:M,F,Otro'],
 
             // Datos opcionales
@@ -29,7 +29,7 @@ class StorePacienteRequest extends FormRequest
 
             // Contacto
             'telefono' => ['nullable', 'string', 'max:20'],
-            'medio_captacion'=> ['nullable', 'string', 'max:255'],
+            'medio_captacion' => ['nullable', 'string', 'max:255'],
             'celular' => ['nullable', 'string', 'max:20'],
             'telefono_domicilio' => ['nullable', 'string', 'max:20'],
             'telefono_oficina' => ['nullable', 'string', 'max:20'],
