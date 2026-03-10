@@ -31,7 +31,7 @@ class UpdatePacienteRequest extends FormRequest
                 Rule::unique('pacientes', 'documento_identidad')->ignore($pacienteId),
             ],
             'tipo_documento' => ['sometimes', 'required', 'in:DNI,CE,Pasaporte,Otro'],
-            'fecha_nacimiento' => ['sometimes', 'required', 'date', 'before:today'],
+            'fecha_nacimiento' => ['sometimes', 'date', 'before:today'],
             'genero' => ['sometimes', 'required', 'in:M,F,Otro'],
 
             // Datos opcionales
